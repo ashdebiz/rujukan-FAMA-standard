@@ -402,7 +402,7 @@ if page == "Halaman Pengguna (Carian)":
     st.markdown("""
         <div class="header-container">
             <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" alt="Logo FAMA" class="header-logo" width="80">
-            <h1 class="main-header">🌾 Rujukan FAMA Standard Keluaran Hasil Pertanian</h1>
+            <h1 class="main-header">🌾 RUJUKAN FAMA STANDARD KELUARAN HASIL PERTANIAN</h1>
         </div>
     """, unsafe_allow_html=True)
     
