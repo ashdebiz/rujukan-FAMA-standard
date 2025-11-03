@@ -401,7 +401,7 @@ if page == "Halaman Pengguna (Carian)":
     # Logo FAMA dan tajuk header di tengah betul-betul
     st.markdown("""
         <div class="header-container">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" alt="Logo FAMA" class="header-logo" width="150">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" alt="Logo FAMA" class="header-logo" width="80">
             <h1 class="main-header">🌾 Rujukan FAMA Standard Keluaran Hasil Pertanian</h1>
         </div>
     """, unsafe_allow_html=True)
