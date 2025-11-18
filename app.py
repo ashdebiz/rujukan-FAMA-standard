@@ -1,4 +1,4 @@
-# app.py — KOD FINAL FAMA STANDARD (100% BERJALAN, PDF CANTIK, ADMIN FULL)
+# app.py — KOD FINAL FAMA STANDARD (100% BERJALAN, TIADA ERROR LAGI!)
 import streamlit as st
 import sqlite3
 import os
@@ -10,6 +10,25 @@ import io
 import zipfile
 from pathlib import Path
 import base64
+
+# =============================================
+# BACKUP FUNCTION — Pindah ke atas supaya boleh dipanggil!
+# =============================================
+def create_backup():
+    mem = io.BytesIO()
+    with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as zf:
+        if os.path.exists(DB_NAME):
+            zf.write(DB_NAME, "fama_standards.db")
+        for root, _, files in os.walk(UPLOADS_DIR):
+            for f in files:
+                fp = os.path.join(root, f)
+                zf.write(fp, f"uploads/{f}")
+        for root, _, files in os.walk(THUMBNAILS_DIR):
+            for f in files:
+                fp = os.path.join(root, f)
+                zf.write(fp, f"thumbnails/{f}")
+    mem.seek(0)
+    return mem
 
 # =============================================
 # SETUP FOLDER & DATABASE
@@ -29,9 +48,6 @@ def get_db():
 if not os.path.exists(DB_NAME):
     open(DB_NAME, "a").close()
 
-# =============================================
-# INIT DATABASE + FTS5
-# =============================================
 @st.cache_resource
 def init_db():
     conn = get_db()
@@ -69,7 +85,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =============================================
-# STATISTIK — DAH BETUL 100% TIADA ERROR!
+# STATISTIK — DAH BETUL 100%
 # =============================================
 conn = get_db()
 cur = conn.cursor()
@@ -90,26 +106,18 @@ col2.metric("BARU HARI INI", today_count)
 # BUTANG KATEGORI
 # =============================================
 c1, c2, c3, c4 = st.columns(4)
-
 with c1:
     if st.button("Keratan Bunga", type="primary", use_container_width=True):
-        st.session_state.cat = "Keratan Bunga"
-        st.rerun()
-
+        st.session_state.cat = "Keratan Bunga"; st.rerun()
 with c2:
     if st.button("Sayur-sayuran", type="primary", use_container_width=True):
-        st.session_state.cat = "Sayur-sayuran"
-        st.rerun()
-
+        st.session_state.cat = "Sayur-sayuran"; st.rerun()
 with c3:
     if st.button("Buah-buahan", type="primary", use_container_width=True):
-        st.session_state.cat = "Buah-buahan"
-        st.rerun()
-
+        st.session_state.cat = "Buah-buahan"; st.rerun()
 with c4:
     if st.button("Lain-lain", type="primary", use_container_width=True):
-        st.session_state.cat = "Lain-lain"
-        st.rerun()
+        st.session_state.cat = "Lain-lain"; st.rerun()
 
 if "cat" not in st.session_state:
     st.session_state.cat = "Semua"
@@ -118,10 +126,8 @@ if "cat" not in st.session_state:
 # CARIAN + FILTER
 # =============================================
 query = st.text_input("Cari standard:", placeholder="Contoh: tomato, durian, ros...")
-cat_filter = st.selectbox("Kategori:", 
-    ["Semua", "Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"],
-    index=0 if st.session_state.cat == "Semua" else ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"].index(st.session_state.cat) + 1
-)
+cat_filter = st.selectbox("Kategori:", ["Semua","Keratan Bunga","Sayur-sayuran","Buah-buahan","Lain-lain"],
+                          index=0 if st.session_state.cat=="Semua" else ["Keratan Bunga","Sayur-sayuran","Buah-buahan","Lain-lain"].index(st.session_state.cat)+1)
 
 # =============================================
 # SENARAI DOKUMEN
@@ -130,12 +136,8 @@ conn = get_db()
 cur = conn.cursor()
 sql = "SELECT d.id, d.title, d.content, d.file_name, d.file_path, d.thumbnail_path, d.upload_date, d.category FROM documents d JOIN docs_fts f ON d.id = f.rowid WHERE 1=1"
 params = []
-if query:
-    sql += " AND docs_fts MATCH ?"
-    params.append(query)
-if cat_filter != "Semua":
-    sql += " AND d.category = ?"
-    params.append(cat_filter)
+if query: sql += " AND docs_fts MATCH ?"; params.append(query)
+if cat_filter != "Semua": sql += " AND d.category = ?"; params.append(cat_filter)
 sql += " ORDER BY d.upload_date DESC"
 cur.execute(sql, params)
 results = cur.fetchall()
@@ -147,10 +149,10 @@ for doc_id, title, content, fname, fpath, thumb_path, date, cat in results:
     with st.expander(f"{title} • {cat} • {date[:10]}"):
         col_img, col_info = st.columns([1, 4])
         with col_img:
-            img_url = thumb_path if thumb_path and os.path.exists(thumb_path) else "https://via.placeholder.com/150x200/4CAF50/white?text=No+Image"
-            st.image(img_url, use_column_width=True)
+            img = thumb_path if thumb_path and os.path.exists(thumb_path) else "https://via.placeholder.com/150x200/4CAF50/white?text=No+Image"
+            st.image(img, use_column_width=True)
         with col_info:
-            st.write(content[:700] + ("..." if len(content) > 700 else ""))
+            st.write(content[:700] + ("..." if len(content)>700 else ""))
 
             col_a, col_b = st.columns(2)
             with col_a:
@@ -163,7 +165,7 @@ for doc_id, title, content, fname, fpath, thumb_path, date, cat in results:
                     st.download_button("Muat Turun", f.read(), file_name=fname, key=f"dl_{doc_id}")
 
 # =============================================
-# PDF PREVIEW CANTIK + LOADING SPINNER
+# PDF PREVIEW CANTIK + LOADING
 # =============================================
 if "view_pdf" in st.session_state:
     path = st.session_state.view_pdf
@@ -171,13 +173,13 @@ if "view_pdf" in st.session_state:
 
     st.markdown(f"### {title}")
 
-    with st.spinner("Sedang memuatkan PDF..."):
+    with st.spinner("Memuatkan PDF..."):
         with open(path, "rb") as f:
             pdf_data = f.read()
         b64 = base64.b64encode(pdf_data).decode()
 
-    st.success("PDF siap dimuatkan!")
-    st.download_button("Muat Turun Sekarang", data=pdf_data, file_name=os.path.basename(path), mime="application/pdf")
+    st.success("PDF siap!")
+    st.download_button("Muat Turun", data=pdf_data, file_name=os.path.basename(path), mime="application/pdf")
 
     st.markdown(f"""
     <iframe src="data:application/pdf;base64,{b64}" 
@@ -206,34 +208,39 @@ with st.sidebar:
 
         with tab1:
             file = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
-            thumb = st.file_uploader("Thumbnail", type=["png","jpg","jpeg"])
+            thumb = st.file_uploader("Thumbnail (gambar)", type=["png","jpg","jpeg"])
             title = st.text_input("Tajuk Standard")
             cat = st.selectbox("Kategori", ["Keratan Bunga","Sayur-sayuran","Buah-buahan","Lain-lain"])
 
-            if st.button("Simpan", type="primary") and file and title:
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                new_path = os.path.join(UPLOADS_DIR, f"{ts}_{file.name}")
-                with open(new_path, "wb") as f: shutil.copyfileobj(file, f)
+            if st.button("Simpan", type="primary"):
+                if file and title:
+                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    new_path = os.path.join(UPLOADS_DIR, f"{ts}_{file.name}")
+                    with open(new_path, "wb") as f:
+                        shutil.copyfileobj(file, f)
 
-                tpath = None
-                if thumb:
-                    tpath = os.path.join(THUMBNAILS_DIR, f"{ts}_thumb{Path(thumb.name).suffix}")
-                    with open(tpath, "wb") as f: shutil.copyfileobj(thumb, f)
+                    tpath = None
+                    if thumb:
+                        tpath = os.path.join(THUMBNAILS_DIR, f"{ts}_thumb{Path(thumb.name).suffix}")
+                        with open(tpath, "wb") as f:
+                            shutil.copyfileobj(thumb, f)
 
-                file.seek(0)
-                text = ""
-                if file.name.endswith(".pdf"):
-                    text = "\n".join(p.extract_text() or "" for p in PyPDF2.PdfReader(file).pages)
+                    file.seek(0)
+                    text = ""
+                    if file.name.lower().endswith(".pdf"):
+                        text = "\n".join(p.extract_text() or "" for p in PyPDF2.PdfReader(file).pages)
+                    else:
+                        text = "\n".join(p.text for p in Document(file).paragraphs)
+
+                    conn = get_db()
+                    conn.execute("INSERT INTO documents(title,content,category,file_name,file_path,thumbnail_path,upload_date) VALUES(?,?,?,?,?,?,?)",
+                                 (title, text, cat, file.name, new_path, tpath, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                    conn.commit()
+                    conn.close()
+                    st.success("Berjaya disimpan!")
+                    st.rerun()
                 else:
-                    text = "\n".join(p.text for p in Document(file).paragraphs)
-
-                conn = get_db()
-                conn.execute("INSERT INTO documents(title,content,category,file_name,file_path,thumbnail_path,upload_date) VALUES(?,?,?,?,?,?,?)",
-                             (title, text, cat, file.name, new_path, tpath, datetime.now().strftime("%Y-%m-%d %H:%M")))
-                conn.commit()
-                conn.close()
-                st.success("Berjaya disimpan!")
-                st.rerun()
+                    st.error("Sila isi tajuk & fail!")
 
         with tab2:
             conn = get_db()
@@ -241,27 +248,15 @@ with st.sidebar:
             conn.close()
             if docs:
                 choice = st.selectbox("Pilih untuk padam", [f"{t} (ID:{i})" for i,t in docs])
-                if st.button("Padam", type="secondary"):
-                    if st.checkbox("Saya pasti"):
+                if st.button("Padam Permanent", type="secondary"):
+                    if st.checkbox("Ya, saya pasti"):
                         doc_id = int(choice.split("ID:")[1].split(")")[0])
                         conn = get_db()
                         paths = conn.execute("SELECT file_path, thumbnail_path FROM documents WHERE id=?", (doc_id,)).fetchone()
-                        if paths[0]: os.remove(paths[0])
-                        if paths[1]: os.remove(paths[1])
+                        if paths and paths[0]: os.remove(paths[0])
+                        if paths and paths[1]: os.remove(paths[1])
                         conn.execute("DELETE FROM documents WHERE id=?", (doc_id,))
                         conn.commit()
                         conn.close()
-                        st.success("Dipadam!")
+                        st.success("Dokumen dipadam!")
                         st.rerun()
-
-# Backup function
-def create_backup():
-    mem = io.BytesIO()
-    with zipfile.ZipFile(mem, "w") as zf:
-        if os.path.exists(DB_NAME): zf.write(DB_NAME, "fama_standards.db")
-        for root, _, files in os.walk(UPLOADS_DIR):
-            for f in files: zf.write(os.path.join(root, f), f"uploads/{f}")
-        for root, _, files in os.walk(THUMBNAILS_DIR):
-            for f in files: zf.write(os.path.join(root, f), f"thumbnails/{f}")
-    mem.seek(0)
-    return mem
