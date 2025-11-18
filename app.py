@@ -1,9 +1,9 @@
-# app.py
+# app.py — FINAL VERSION (Logo FAMA + Data Kekal + Backup + Upload + Carian)
 import streamlit as st
 import sqlite3
 import os
 import shutil
-from datetime import datetime, date
+from datetime import datetime
 import PyPDF2
 from docx import Document
 import io
@@ -31,7 +31,7 @@ if not os.path.exists(DB_NAME):
     open(DB_NAME, "a").close()
 
 # =============================================
-# INISIALISASI DATABASE (sama macam asal kamu)
+# INISIALISASI DATABASE + FTS5 (CARIAN LAJU)
 # =============================================
 @st.cache_resource
 def init_db():
@@ -50,9 +50,6 @@ def init_db():
         CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
             title, content, category, content='documents', content_rowid='id'
         );
-    ''')
-    # Trigger FTS
-    conn.executescript('''
         CREATE TRIGGER IF NOT EXISTS documents_ai AFTER INSERT ON documents BEGIN
             INSERT INTO documents_fts(rowid, title, content, category) VALUES (new.id, new.title, new.content, new.category);
         END;
@@ -69,7 +66,7 @@ def init_db():
 init_db()
 
 # =============================================
-# BACKUP PENUH (DB + FAIL + THUMBNAIL)
+# BACKUP PENUH (DB + SEMUA FAIL)
 # =============================================
 def create_full_backup():
     mem = io.BytesIO()
@@ -83,90 +80,116 @@ def create_full_backup():
         for root, _, files in os.walk(THUMBNAILS_DIR):
             for f in files:
                 fp = os.path.join(root, f)
+                z type="primary", use_container_width=True):
                 zf.write(fp, os.path.join("thumbnails", os.path.relpath(fp, THUMBNAILS_DIR)))
     mem.seek(0)
     return mem
 
 # =============================================
-# UI 100% SAMA MACAM GAMBAR KAMU (tak ubah langsung!)
+# PAGE CONFIG & TAJUK CANTIK DENGAN LOGO FAMA
 # =============================================
-st.set_page_config(page_title="Rujukan FAMA Standard", page_icon="rice", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Rujukan FAMA Standard", page_icon="rice", layout="centered")
 
 st.markdown("""
-<div style="text-align:center; margin-bottom:20px;">
-    <h1 style="color:#2E7D32; font-size:2.8em;">RUJUKAN FAMA STANDARD<br>KELUARAN HASIL PERTANIAN</h1>
-    <p style="color:#4CAF50; font-size:1.2em;">
-        Temui panduan standard pertanian terkini dengan mudah. Klik butang di bawah untuk papar senarai standard mengikut kategori!
+<div style="text-align:center; padding:20px 0; margin-bottom:10px;">
+    <img src="https://www.fama.gov.my/wp-content/uploads/2023/06/Logo-FAMA-Baru-2023.png" width="140" style="border-radius:12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <h1 style="color:#2E7D32; font-size:3em; margin:15px 0 5px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">
+        RUJUKAN FAMA STANDARD
+    </h1>
+    <p style="color:#388E3C; font-size:1.7em; margin:0; font-weight:600;">
+        KELUARAN HASIL PERTANIAN
+    </p>
+    <p style="color:#4CAF50; font-size:1.2em; margin-top:12px;">
+        Temui panduan standard pertanian terkini dengan mudah
     </p>
 </div>
 """, unsafe_allow_html=True)
 
-# Statistik
-conn = get_db()
-total = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
-today = conn.execute("SELECT COUNT(*) FROM documents WHERE upload_date LIKE ?", (f"{date.today()}%",)).fetchone()[0]
-conn.close()
-
-c1, c2 = st.columns(2)
-c1.metric("Jumlah Standard Keseluruhan", total)
-c2.metric("Standard Baru Hari Ini", today)
-
-# 4 BUTANG KATEGORI HIJAU BULAT
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    if st.button("Keratan Bunga", type="primary", use_container_width=True):
-        st.session_state.category = "Keratan Bunga"
-        st.rerun()
-with col2:
-    if st.button("Sayur-sayuran", type="primary", use_container_width=True):
-        st.session_state.category = "Sayur-sayuran"
-        st.rerun()
-with col3:
-    if st.button("Buah-buahan", type="primary", use_container_width=True):
-        st.session_state.category = "Buah-buahan"
-        st.rerun()
-with col4:
-    if st.button("Lain-lain", type="primary", use_container_width=True):
-        st.session_state.category = "Lain-lain"
-        st.rerun()
-
-# Carian
-if "category" not in st.session_state:
-    st.session_state.category = "Semua"
-
-query = st.text_input("Masukkan kata kunci carian (opsional):", placeholder="Contoh: standard keratan bunga")
-category_filter = st.selectbox("Filter Kategori:", ["Semua", "Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"],
-                               index=["Semua", "Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"].index(st.session_state.category))
-
-# Carian ringkas
+# =============================================
+# STATISTIK
+# =============================================
 conn = get_db()
 cur = conn.cursor()
-sql = "SELECT title, content, file_name, file_path, upload_date, category FROM documents WHERE 1=1"
+cur.execute("SELECT COUNT(*) FROM documents")
+total = cur.fetchone()[0]
+today = datetime.now().strftime("%Y-%m-%d")
+cur.execute("SELECT COUNT(*) FROM documents WHERE upload_date LIKE ?", (f"{today}%",))
+today_count = cur.fetchone()[0]
+conn.close()
+
+col1, col2 = st.columns(2)
+col1.metric("Jumlah Standard Keseluruhan", total)
+col2.metric("Standard Baru Hari Ini", today_count)
+
+# =============================================
+# 4 BUTANG KATEGORI (HIJAU BULAT CANTIK)
+# =============================================
+st.markdown("<br>", unsafe_allow_html=True)
+c1, c2, c3, c4 = st.columns(4)
+with c1:
+    if st.button("Keratan Bunga", type="primary", use_container_width=True):
+        st.session_state.cat = "Keratan Bunga"; st.rerun()
+with c2:
+    if st.button("Sayur-sayuran", type="primary", use_container_width=True):
+        st.session_state.cat = "Sayur-sayuran"; st.rerun()
+with c3:
+    if st.button("Buah-buahan", type="primary", use_container_width=True):
+        st.session_state.cat = "Buah-buahan"; st.rerun()
+with c4:
+    if st.button("Lain-lain", type="primary", use_container_width=True):
+        st.session_state.cat = "Lain-lain"; st.rerun()
+
+if "cat" not in st.session_state:
+    st.session_state.cat = "Semua"
+
+# =============================================
+# CARIAN & FILTER
+# =============================================
+st.markdown("<br>", unsafe_allow_html=True)
+query = st.text_input("Masukkan kata kunci carian (opsional):", placeholder="Contoh: standard keratan bunga")
+category_filter = st.selectbox("Filter Kategori:", 
+                               ["Semua", "Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"],
+                               index=0 if st.session_state.cat == "Semua" else ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"].index(st.session_state.cat) + 1)
+
+# =============================================
+# PENCARIAN DENGAN FTS5 (LAJU!)
+# =============================================
+conn = get_db()
+cur = conn.cursor()
+sql = "SELECT d.title, d.content, d.file_name, d.file_path, d.upload_date, d.category FROM documents d JOIN documents_fts f ON d.id = f.rowid WHERE 1=1"
 params = []
+
 if query:
-    sql += " AND (title LIKE ? OR content LIKE ?)"
-    params.extend([f"%{query}%", f"%{query}%"])
+    sql += " AND documents_fts MATCH ?"
+    params.append(query)
 if category_filter != "Semua":
-    sql += " AND category = ?"
+    sql += " AND d.category = ?"
     params.append(category_filter)
-sql += " ORDER BY upload_date DESC"
+
+sql += " ORDER BY d.upload_date DESC"
 cur.execute(sql, params)
 results = cur.fetchall()
 conn.close()
 
-st.write(f"**Ditemui {len(results)} dokumen**")
+st.markdown(f"**Ditemui {len(results)} dokumen**")
+
 for title, content, fname, fpath, date, cat in results:
-    with st.expander(f"{title} ({cat}) – {date[:10]}"):
-        st.write(content[:600] + ("..." if len(content) > 600 else ""))
+    with st.expander(f"{title} • {cat} • {date[:10]}"):
+        st.write(content[:700] + ("..." if len(content) > 700 else ""))
         if fpath and os.path.exists(fpath):
             with open(fpath, "rb") as f:
-                st.download_button("Muat Turun", f.read(), file_name=fname or "dokumen.pdf")
+                st.download_button("Muat Turun Dokumen", f.read(), file_name=fname or "dokumen.pdf", mime="application/pdf")
 
-# ADMIN: Backup satu klik
+# =============================================
+# ADMIN PANEL (DENGAN BACKUP + UPLOAD)
+# =============================================
 with st.sidebar:
     st.markdown("## Admin")
-    if st.text_input("Kata laluan", type="password") == "admin123":
-        st.success("Log masuk admin")
+    password = st.text_input("Kata laluan", type="password")
+    if password == "admin123":  # tukar kalau nak
+        st.success("Log masuk berjaya!")
+
+        # Backup satu klik
         backup_data = create_full_backup()
         st.download_button(
             label="Download Backup Penuh (.zip)",
@@ -174,10 +197,14 @@ with st.sidebar:
             file_name=f"fama_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
             mime="application/zip"
         )
-        uploaded_file = st.file_uploader("Upload PDF/DOCX", type=["pdf", "docx"])
-        title = st.text_input("Nama Komoditi")
+
+        st.markdown("---")
+        st.subheader("Upload Dokumen Baru")
+        uploaded_file = st.file_uploader("Pilih PDF/DOCX", type=["pdf", "docx"])
+        title = st.text_input("Nama Komoditi / Tajuk")
         category = st.selectbox("Kategori", ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"])
-        if uploaded_file and title and st.button("Simpan"):
+        
+        if uploaded_file and title and st.button("Simpan Dokumen"):
             # Simpan fail
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             ext = Path(uploaded_file.name).suffix
@@ -185,19 +212,23 @@ with st.sidebar:
             file_path = os.path.join(UPLOADS_DIR, safe_name)
             with open(file_path, "wb") as f:
                 shutil.copyfileobj(uploaded_file, f)
+
             # Ekstrak teks
             uploaded_file.seek(0)
-            if ext == ".pdf":
-                text = PyPDF2.PdfReader(uploaded_file)
-                content = "\n".join(page.extract_text() or "" for page in text.pages)
+            if ext.lower() == ".pdf":
+                reader = PyPDF2.PdfReader(uploaded_file)
+                text = "\n".join(page.extract_text() or "" for page in reader.pages)
             else:
                 doc = Document(uploaded_file)
-                content = "\n".join(p.text for p in doc.paragraphs)
+                text = "\n".join(p.text for p in doc.paragraphs)
+
             # Simpan ke DB
             conn = get_db()
-            conn.execute("INSERT INTO documents (title, content, category, file_name, file_path, upload_date) VALUES (?, ?, ?, ?, ?, ?)",
-                        (title, content, category, uploaded_file.name, file_path, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            conn.execute("""
+                INSERT INTO documents (title, content, category, file_name, file_path, upload_date)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (title, text, category, uploaded_file.name, file_path, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
             conn.commit()
             conn.close()
-            st.success("Berjaya disimpan!")
+            st.success("Dokumen berjaya disimpan!")
             st.rerun()
