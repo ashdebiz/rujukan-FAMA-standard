@@ -88,7 +88,7 @@ st.set_page_config(page_title="Rujukan FAMA Standard", page_icon="rice", layout=
 
 st.markdown("""
 <div style="text-align:center; padding:20px 0;">
-    <img src="https://www.fama.gov.my/wp-content/uploads/2023/06/Logo-FAMA-Baru-2023.png" width="140">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="140">
     <h1 style="color:#2E7D32; font-size:3em; margin:15px 0 5px 0;">RUJUKAN FAMA STANDARD</h1>
     <p style="color:#388E3C; font-size:1.8em; margin:0; font-weight:600;">KELUARAN HASIL PERTANIAN</p>
     <p style="color:#4CAF50; font-size:1.2em; margin-top:12px;">Temui panduan standard pertanian terkini dengan mudah</p>
