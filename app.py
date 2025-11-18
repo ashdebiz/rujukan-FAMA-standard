@@ -14,10 +14,10 @@ from pathlib import Path
 # =============================================
 DB_NAME = "/tmp/standards_db.sqlite"
 UPLOADS_DIR = "/tmp/uploads"
-THUMB_NAILS_DIR = "/tmp/thumbnails"
+THUMBNAILS_DIR = "/tmp/thumbnails"
 
 os.makedirs(UPLOADS_DIR, exist_ok=True)
-os.makedirs(THUMB_NAILS_DIR, exist_ok=True)
+os.makedirs(THUMBNAILS_DIR, exist_ok=True)
 
 def get_db():
     conn = sqlite3.connect(DB_NAME, timeout=30.0, check_same_thread=False)
@@ -64,7 +64,7 @@ def init_db():
 init_db()
 
 # =============================================
-# BACKUP PENUH (DB + FAIL + THUMBNAIL)
+# BACKUP PENUH
 # =============================================
 def create_full_backup():
     memory_file = io.BytesIO()
@@ -75,15 +75,15 @@ def create_full_backup():
             for file in files:
                 fp = os.path.join(root, file)
                 zf.write(fp, os.path.join("uploads", os.path.relpath(fp, UPLOADS_DIR)))
-        for root, _, files in os.walk(THUMB_NAILS_DIR):
+        for root, _, files in os.walk(THUMBNAILS_DIR):
             for file in files:
                 fp = os.path.join(root, file)
-                zf.write(fp, os.path.join("thumbnails", os.path.relpath(fp, THUMB_NAILS_DIR)))
+                zf.write(fp, os.path.join("thumbnails", os.path.relpath(fp, THUMBNAILS_DIR)))
     memory_file.seek(0)
     return memory_file
 
 # =============================================
-# TAJUK CANTIK DENGAN LOGO FAMA RASMI
+# TAJUK DENGAN LOGO FAMA RASMI
 # =============================================
 st.set_page_config(page_title="Rujukan FAMA Standard", page_icon="rice", layout="centered")
 
@@ -103,15 +103,17 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =============================================
-# STATISTIK
+# STATISTIK — DAH BETULKAN ERROR!
 # =============================================
 conn = get_db()
 cur = conn.cursor()
 cur.execute("SELECT COUNT(*) FROM documents")
 total = cur.fetchone()[0]
+
 today = datetime.now().strftime("%Y-%m-%d")
 cur.execute("SELECT COUNT(*) FROM documents WHERE substr(upload_date,1,10) = ?", (today,))
-today_count = cur.fetchone()[0] if cur.fetchone() else 0
+row = cur.fetchone()
+today_count = row[0] if row else 0
 conn.close()
 
 col1, col2 = st.columns(2)
@@ -119,7 +121,7 @@ col1.metric("Jumlah Standard Keseluruhan", total)
 col2.metric("Standard Baru Hari Ini", today_count)
 
 # =============================================
-# BUTANG KATEGORI (4 KOTAK HIJAU BULAT)
+# BUTANG KATEGORI
 # =============================================
 st.markdown("<br>", unsafe_allow_html=True)
 c1, c2, c3, c4 = st.columns(4)
@@ -148,7 +150,7 @@ category_filter = st.selectbox("Filter Kategori:",
     index=0 if st.session_state.cat == "Semua" else ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"].index(st.session_state.cat) + 1)
 
 # =============================================
-# PENCARIAN (FTS5 – SUPER LAJU)
+# PENCARIAN DENGAN FTS5
 # =============================================
 conn = get_db()
 cur = conn.cursor()
@@ -181,11 +183,10 @@ for title, content, fname, fpath, date, cat in results:
 # =============================================
 with st.sidebar:
     st.markdown("## Admin")
-    pw = st.text_input("Kata laluan", type="password")
-    if pw == "admin123":  # tukar kalau nak
-        st.success("Log masuk admin")
+    pw = st.text_input("Kata laluan", type="password", key="pw")
+    if pw == "admin123":
+        st.success("Log masuk berjaya!")
 
-        # Backup satu klik
         st.download_button(
             label="Download Backup Penuh (.zip)",
             data=create_full_backup(),
@@ -210,7 +211,7 @@ with st.sidebar:
             uploaded.seek(0)
             if ext.lower() == ".pdf":
                 reader = PyPDF2.PdfReader(uploaded)
-                text = "\n".join(p.extract_text() or "" for p in reader.pages)
+                text = "\n".join(page.extract_text() or "" for page in reader.pages)
             else:
                 doc = Document(uploaded)
                 text = "\n".join(p.text for p in doc.paragraphs)
