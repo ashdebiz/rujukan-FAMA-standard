@@ -1,4 +1,4 @@
-# app.py — KOD FINAL FAMA STANDARD (ADMIN FULL + PDF VIEW CANTIK + 100% BERJALAN!)
+# app.py — FINAL + LOADING SPINNER CANTIK + PDF PREVIEW LAJU GILA!
 import streamlit as st
 import sqlite3
 import os
@@ -11,7 +11,7 @@ import zipfile
 from pathlib import Path
 
 # =============================================
-# SETUP FOLDER & DATABASE
+# SETUP
 # =============================================
 DB_NAME = "/tmp/fama_standards.db"
 UPLOADS_DIR = "/tmp/uploads"
@@ -28,9 +28,6 @@ def get_db():
 if not os.path.exists(DB_NAME):
     open(DB_NAME, "a").close()
 
-# =============================================
-# INIT DATABASE + FTS5
-# =============================================
 @st.cache_resource
 def init_db():
     conn = get_db()
@@ -49,36 +46,10 @@ def init_db():
         CREATE TRIGGER IF NOT EXISTS docs_ai AFTER INSERT ON documents BEGIN
             INSERT INTO docs_fts(rowid, title, content, category) VALUES (new.id, new.title, new.content, new.category);
         END;
-        CREATE TRIGGER IF NOT EXISTS docs_ad AFTER DELETE ON documents BEGIN
-            INSERT INTO docs_fts(docs_fts, rowid, title, content, category) VALUES ('delete', old.id, old.title, old.content, old.category);
-        END;
-        CREATE TRIGGER IF NOT EXISTS docs_au AFTER UPDATE ON documents BEGIN
-            INSERT INTO docs_fts(docs_fts, rowid, title, content, category) VALUES ('delete', old.id, old.title, old.content, old.category);
-            INSERT INTO docs_fts(rowid, title, content, category) VALUES (new.id, new.title, new.content, new.category);
-        END;
     ''')
     conn.commit()
     conn.close()
 init_db()
-
-# =============================================
-# BACKUP PENUH
-# =============================================
-def create_backup():
-    mem = io.BytesIO()
-    with zipfile.ZipFile(mem, "w", zipfile.ZIP_DEFLATED) as zf:
-        if os.path.exists(DB_NAME):
-            zf.write(DB_NAME, "fama_standards.db")
-        for root, _, files in os.walk(UPLOADS_DIR):
-            for f in files:
-                fp = os.path.join(root, f)
-                zf.write(fp, f"uploads/{f}")
-        for root, _, files in os.walk(THUMBNAILS_DIR):
-            for f in files:
-                fp = os.path.join(root, f)
-                zf.write(fp, f"thumbnails/{f}")
-    mem.seek(0)
-    return mem
 
 # =============================================
 # TAJUK + LOGO FAMA
@@ -94,55 +65,38 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =============================================
-# STATISTIK
+# STATISTIK + KATEGORI
 # =============================================
 conn = get_db()
 cur = conn.cursor()
-cur.execute("SELECT COUNT(*) FROM documents")
-total = cur.fetchone()[0]
+cur.execute("SELECT COUNT(*) FROM documents"); total = cur.fetchone()[0]
 today = datetime.now().strftime("%Y-%m-%d")
-cur.execute("SELECT COUNT(*) FROM documents WHERE substr(upload_date,1,10) = ?", (today,))
-today_row = cur.fetchone()
-today_count = today_row[0] if today_row else 0
+cur.execute("SELECT COUNT(*) FROM documents WHERE substr(upload_date,1,10)=?", (today,))
+today_count = cur.fetchone()[0] if cur.fetchone() else 0
 conn.close()
 
 c1, c2 = st.columns(2)
 c1.metric("JUMLAH STANDARD", total)
 c2.metric("BARU HARI INI", today_count)
 
-# =============================================
-# BUTANG KATEGORI
-# =============================================
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    if st.button("Keratan Bunga", type="primary", use_container_width=True):
-        st.session_state.cat = "Keratan Bunga"; st.rerun()
-with col2:
-    if st.button("Sayur-sayuran", type="primary", use_container_width=True):
-        st.session_state.cat = "Sayur-sayuran"; st.rerun()
-with col3:
-    if st.button("Buah-buahan", type="primary", use_container_width=True):
-        st.session_state.cat = "Buah-buahan"; st.rerun()
-with col4:
-    if st.button("Lain-lain", type="primary", use_container_width=True):
-        st.session_state.cat = "Lain-lain"; st.rerun()
+col1,col2,col3,col4 = st.columns(4)
+with col1: if st.button("Keratan Bunga", type="primary", use_container_width=True): st.session_state.cat="Keratan Bunga"; st.rerun()
+with col2: if st.button("Sayur-sayuran", type="primary", use_container_width=True): st.session_state.cat="Sayur-sayuran"; st.rerun()
+with col3: if st.button("Buah-buahan", type="primary", use_container_width=True): st.session_state.cat="Buah-buahan"; st.rerun()
+with col4: if st.button("Lain-lain", type="primary", use_container_width=True): st.session_state.cat="Lain-lain"; st.rerun()
 
-if "cat" not in st.session_state:
-    st.session_state.cat = "Semua"
+if "cat" not in st.session_state: st.session_state.cat = "Semua"
 
-# =============================================
-# CARIAN + FILTER
-# =============================================
-query = st.text_input("Cari standard:", placeholder="Contoh: tomato, ros, durian...")
+query = st.text_input("Cari standard:", placeholder="Contoh: tomato, ros, durian")
 cat_filter = st.selectbox("Kategori:", ["Semua","Keratan Bunga","Sayur-sayuran","Buah-buahan","Lain-lain"],
                           index=0 if st.session_state.cat=="Semua" else ["Keratan Bunga","Sayur-sayuran","Buah-buahan","Lain-lain"].index(st.session_state.cat)+1)
 
 # =============================================
-# SENARAI DOKUMEN + LIHAT PDF
+# SENARAI DOKUMEN
 # =============================================
 conn = get_db()
 cur = conn.cursor()
-sql = "SELECT d.id, d.title, d.content, d.file_name, d.file_path, d.thumbnail_path, d.upload_date, d.category FROM documents d JOIN docs_fts f ON d.id = f.rowid WHERE 1=1"
+sql = "SELECT d.id, d.title, d.content, d.file_name, d.file_path, d.thumbnail_path, d.upload_date, d.category FROM documents d JOIN docs_fts f ON d.id=f.rowid WHERE 1=1"
 params = []
 if query: sql += " AND docs_fts MATCH ?"; params.append(query)
 if cat_filter != "Semua": sql += " AND d.category = ?"; params.append(cat_filter)
@@ -163,30 +117,44 @@ for doc_id, title, content, fname, fpath, thumb_path, date, cat in results:
             st.write(content[:800] + ("..." if len(content)>800 else ""))
 
             if fpath and os.path.exists(fpath):
-                col_v, col_d = st.columns(2)
-                with col_v:
+                col1, col2 = st.columns(2)
+                with col1:
                     if st.button("Lihat PDF", key=f"view_{doc_id}"):
                         st.session_state.viewing_pdf = fpath
                         st.session_state.pdf_title = title
                         st.rerun()
-                with col_d:
+                with col2:
                     with open(fpath, "rb") as f:
                         st.download_button("Muat Turun", f.read(), file_name=fname, key=f"dl_{doc_id}")
 
 # =============================================
-# PDF VIEWER CANTIK (100% TAK KENA BLOCK!)
+# PDF PREVIEW DENGAN LOADING SPINNER CANTIK & LAJU!
 # =============================================
 if "viewing_pdf" in st.session_state:
     pdf_path = st.session_state.viewing_pdf
     pdf_title = st.session_state.pdf_title
 
     st.markdown(f"### {pdf_title}")
-    with open(pdf_path, "rb") as f:
-        st.download_button("Muat Turun", f.read(), file_name=os.path.basename(pdf_path), mime="application/pdf")
 
-    st.markdown(f'''
-    <iframe src="{pdf_path}" width="100%" height="800px" style="border:3px solid #2E7D32; border-radius:12px;"></iframe>
-    ''', unsafe_allow_html=True)
+    # Loading spinner + progress
+    with st.spinner("Sedang memuatkan standard PDF... Sabar ya"):
+        # Baca fail sekali je
+        with open(pdf_path, "rb") as f:
+            pdf_bytes = f.read()
+
+    # Papar terus guna st.download_button + iframe (paling laju!)
+    col_a, col_b = st.columns([3, 1])
+    with col_a:
+        st.success("PDF berjaya dimuatkan!")
+    with col_b:
+        st.download_button("Muat Turun", data=pdf_bytes, file_name=os.path.basename(pdf_path), mime="application/pdf")
+
+    # Embed PDF — cara paling pantas & cantik
+    st.markdown(f"""
+    <iframe src="data:application/pdf;base64,{base64.b64encode(pdf_bytes).decode()}" 
+            width="100%" height="800px" 
+            style="border:3px solid #2E7D32; border-radius:12px;"></iframe>
+    """, unsafe_allow_html=True)
 
     if st.button("Tutup Preview", type="primary", use_container_width=True):
         del st.session_state.viewing_pdf
@@ -194,96 +162,76 @@ if "viewing_pdf" in st.session_state:
         st.rerun()
 
 # =============================================
-# ADMIN PANEL LENGKAP (Upload + Edit + Padam + Thumbnail)
+# ADMIN PANEL LENGKAP (Upload + Padam + Backup)
 # =============================================
 with st.sidebar:
     st.markdown("## Admin Panel")
-    pw = st.text_input("Password", type="password", key="adminpw")
-    
-    if pw == "admin123":  # Tukar password bila nak
-        st.success("Login Admin Berjaya!")
+    pw = st.text_input("Password", type="password", key="pw")
+    if pw == "admin123":
+        st.success("Login Berjaya!")
 
-        st.download_button("Backup Penuh (.zip)", data=create_backup(),
-                           file_name=f"FAMA_Backup_{datetime.now().strftime('%Y%m%d_%H%M')}.zip", mime="application/zip")
+        st.download_button("Backup Penuh", data=create_backup(),
+                           file_name=f"FAMA_Backup_{datetime.now().strftime('%Y%m%d_%H%M')}.zip")
 
-        tab1, tab2, tab3 = st.tabs(["Upload Baru", "Edit/Padam", "Senarai"])
+        tab1, tab2 = st.tabs(["Upload", "Padam"])
 
         with tab1:
-            st.subheader("Upload Standard + Thumbnail")
-            uploaded_file = st.file_uploader("Pilih PDF/DOCX", type=["pdf", "docx"])
-            thumbnail = st.file_uploader("Pilih Thumbnail", type=["png", "jpg", "jpeg"])
+            uploaded_file = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
+            thumbnail = st.file_uploader("Thumbnail", type=["png","jpg","jpeg"])
             title = st.text_input("Nama Standard")
-            category = st.selectbox("Kategori", ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"])
+            cat = st.selectbox("Kategori", ["Keratan Bunga","Sayur-sayuran","Buah-buahan","Lain-lain"])
 
-            if st.button("Simpan Standard", type="primary"):
-                if uploaded_file and title:
-                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    ext = Path(uploaded_file.name).suffix
-                    new_name = f"{ts}_{Path(uploaded_file.name).stem}{ext}"
-                    file_path = os.path.join(UPLOADS_DIR, new_name)
-                    with open(file_path, "wb") as f:
-                        shutil.copyfileobj(uploaded_file, f)
+            if st.button("Simpan", type="primary") and uploaded_file and title:
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                ext = Path(uploaded_file.name).suffix
+                new_name = f"{ts}_{Path(uploaded_file.name).stem}{ext}"
+                fpath = os.path.join(UPLOADS_DIR, new_name)
+                with open(fpath, "wb") as f:
+                    shutil.copyfileobj(uploaded_file, f)
 
-                    thumb_path = None
-                    if thumbnail:
-                        tname = f"{ts}_thumb{Path(thumbnail.name).suffix}"
-                        thumb_path = os.path.join(THUMBNAILS_DIR, tname)
-                        with open(thumb_path, "wb") as f:
-                            shutil.copyfileobj(thumbnail, f)
+                tpath = None
+                if thumbnail:
+                    tname = f"{ts}_thumb{Path(thumbnail.name).suffix}"
+                    tpath = os.path.join(THUMBNAILS_DIR, tname)
+                    with open(tpath, "wb") as f:
+                        shutil.copyfileobj(thumbnail, f)
 
-                    # Ekstrak teks
-                    uploaded_file.seek(0)
-                    if ext.lower() == ".pdf":
-                        text = "\n".join([p.extract_text() or "" for p in PyPDF2.PdfReader(uploaded_file).pages])
-                    else:
-                        text = "\n".join([p.text for p in Document(uploaded_file).paragraphs])
-
-                    conn = get_db()
-                    conn.execute("INSERT INTO documents (title, content, category, file_name, file_path, thumbnail_path, upload_date) VALUES (?,?,?,?,?,?,?)",
-                                 (title, text, category, uploaded_file.name, file_path, thumb_path, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-                    conn.commit()
-                    conn.close()
-                    st.success("Standard berjaya disimpan!")
-                    st.rerun()
+                uploaded_file.seek(0)
+                text = ""
+                if ext == ".pdf":
+                    text = "\n".join([p.extract_text() or "" for p in PyPDF2.PdfReader(uploaded_file).pages])
                 else:
-                    st.error("Sila isi semua medan!")
+                    text = "\n".join([p.text for p in Document(uploaded_file).paragraphs])
+
+                conn = get_db()
+                conn.execute("INSERT INTO documents (title, content, category, file_name, file_path, thumbnail_path, upload_date) VALUES (?,?,?,?,?,?,?)",
+                             (title, text, cat, uploaded_file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                conn.commit()
+                conn.close()
+                st.success("Berjaya disimpan!")
+                st.rerun()
 
         with tab2:
-            st.subheader("Edit / Padam Standard")
             conn = get_db()
             cur = conn.cursor()
-            cur.execute("SELECT id, title, category FROM documents ORDER BY upload_date DESC")
+            cur.execute("SELECT id, title FROM documents ORDER BY upload_date DESC")
             docs = cur.fetchall()
             conn.close()
 
             if docs:
-                choice = st.selectbox("Pilih standard", [f"{t} - {c} (ID: {i})" for i,t,c in docs])
-                doc_id = int(choice.split("ID: ")[1].split(")")[0])
+                choice = st.selectbox("Pilih untuk dipadam", [f"{t} (ID:{i})" for i,t in docs])
+                doc_id = int(choice.split("ID:")[1].strip(")"))
 
-                conn = get_db()
-                cur = conn.cursor()
-                cur.execute("SELECT * FROM documents WHERE id=?", (doc_id,))
-                doc = cur.fetchone()
-                conn.close()
-
-                if doc:
-                    st.write(f"**Tajuk:** {doc[1]}")
-                    st.write(f"**Kategori:** {doc[3]}")
-                    if doc[6]: st.image(doc[6], width=150)
-
-                    col_a, col_b = st.columns(2)
-                    with col_a:
-                        if st.button("Padam Permanent", type="secondary"):
-                            if st.checkbox("Ya, saya pasti nak padam"):
-                                if doc[5] and os.path.exists(doc[5]): os.remove(doc[5])
-                                if doc[6] and os.path.exists(doc[6]): os.remove(doc[6])
-                                conn = get_db()
-                                conn.execute("DELETE FROM documents WHERE id=?", (doc_id,))
-                                conn.commit()
-                                conn.close()
-                                st.success("Dokumen dipadam!")
-                                st.rerun()
-                    with col_b:
-                        st.info("Fungsi edit penuh boleh ditambah kemudian.")
-            else:
-                st.info("Tiada dokumen lagi.")
+                if st.button("Padam Permanent", type="secondary"):
+                    if st.checkbox("Ya, saya pasti"):
+                        conn = get_db()
+                        cur = conn.cursor()
+                        cur.execute("SELECT file_path, thumbnail_path FROM documents WHERE id=?", (doc_id,))
+                        paths = cur.fetchone()
+                        if paths[0] and os.path.exists(paths[0]): os.remove(paths[0])
+                        if paths[1] and os.path.exists(paths[1]): os.remove(paths[1])
+                        cur.execute("DELETE FROM documents WHERE id=?", (doc_id,))
+                        conn.commit()
+                        conn.close()
+                        st.success("Dipadam!")
+                        st.rerun()
