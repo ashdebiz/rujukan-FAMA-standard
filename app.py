@@ -1,3 +1,4 @@
+# app.py — VERSI FINAL + BUTANG "LIHAT PDF" + THUMBNAIL + ADMIN LENGKAP
 import streamlit as st
 import sqlite3
 import os
@@ -88,7 +89,7 @@ st.set_page_config(page_title="Rujukan FAMA Standard", page_icon="rice", layout=
 
 st.markdown("""
 <div style="text-align:center; padding:20px 0;">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="140">
+    <img src="https://www.fama.gov.my/wp-content/uploads/2023/06/Logo-FAMA-Baru-2023.png" width="140">
     <h1 style="color:#2E7D32; font-size:3em; margin:15px 0 5px 0;">RUJUKAN FAMA STANDARD</h1>
     <p style="color:#388E3C; font-size:1.8em; margin:0; font-weight:600;">KELUARAN HASIL PERTANIAN</p>
     <p style="color:#4CAF50; font-size:1.2em; margin-top:12px;">Temui panduan standard pertanian terkini dengan mudah</p>
@@ -138,7 +139,7 @@ category_filter = st.selectbox("Filter Kategori:",
     index=0 if st.session_state.cat == "Semua" else ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"].index(st.session_state.cat) + 1)
 
 # =============================================
-# PAPAR HASIL CARIAN DENGAN THUMBNAIL
+# PAPAR HASIL CARIAN + BUTANG LIHAT PDF + MUAT TURUN
 # =============================================
 conn = get_db()
 cur = conn.cursor()
@@ -159,28 +160,48 @@ st.markdown(f"**Ditemui {len(results)} dokumen**")
 
 for doc_id, title, content, fname, fpath, thumb_path, date, cat in results:
     with st.expander(f"{title} • {cat} • {date[:10]}"):
-        col_img, col_text = st.columns([1, 4])
+        col_img, col_content = st.columns([1, 4])
         with col_img:
             if thumb_path and os.path.exists(thumb_path):
-                st.image(thumb_path, width=120)
+                st.image(thumb_path, width=130)
             else:
-                st.image("https://via.placeholder.com/120x160/4CAF50/white?text=No+Image", width=120)
-        with col_text:
-            st.write(content[:600] + ("..." if len(content) > 600 else ""))
+                st.image("https://via.placeholder.com/130x180/4CAF50/white?text=No+Image", width=130)
+        with col_content:
+            st.write(content[:700] + ("..." if len(content) > 700 else ""))
+
             if fpath and os.path.exists(fpath):
                 with open(fpath, "rb") as f:
-                    st.download_button("Muat Turun Dokumen", f.read(), file_name=fname, key=f"dl_{doc_id}")
+                    pdf_data = f.read()
+
+                col_view, col_download = st.columns(2)
+                with col_view:
+                    st.download_button(
+                        label="Lihat PDF",
+                        data=pdf_data,
+                        file_name=fname,
+                        mime="application/pdf",
+                        key=f"view_{doc_id}"
+                    )
+                with col_download:
+                    st.download_button(
+                        label="Muat Turun",
+                        data=pdf_data,
+                        file_name=fname,
+                        mime="application/pdf",
+                        key=f"dl_{doc_id}"
+                    )
+            else:
+                st.warning("Fail tidak dijumpai.")
 
 # =============================================
-# ADMIN PANEL LENGKAP
+# ADMIN PANEL (Upload + Edit + Padam + Thumbnail + Backup)
 # =============================================
 with st.sidebar:
     st.markdown("## Admin Panel")
     pw = st.text_input("Kata laluan", type="password", key="admin_pw")
-    if pw == "admin123":  # Tukar bila nak
+    if pw == "admin123":
         st.success("Log masuk admin")
 
-        # Backup
         st.download_button("Download Backup Penuh", data=create_full_backup(),
                            file_name=f"fama_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.zip", mime="application/zip")
 
@@ -244,7 +265,7 @@ with st.sidebar:
             conn = get_db()
             cur = conn.cursor()
             cur.execute("SELECT * FROM documents WHERE id = ?", (doc_id,))
-            doc = cur.fetchone()  # id, title, content, category, file_name, file_path, thumbnail_path, upload_date
+            doc = cur.fetchone()
             conn.close()
 
             if doc:
@@ -253,49 +274,35 @@ with st.sidebar:
                     new_title = st.text_input("Tajuk", value=doc[1])
                     new_cat = st.selectbox("Kategori", ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"], 
                                           index=["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"].index(doc[3]))
-                    new_file = st.file_uploader("Ganti fail (biarkan kosong jika tak nak tukar)", type=["pdf", "docx"])
-                    new_thumb = st.file_uploader("Ganti thumbnail (biarkan kosong jika tak nak tukar)", type=["png", "jpg", "jpeg"])
+                    new_file = st.file_uploader("Ganti fail", type=["pdf", "docx"])
+                    new_thumb = st.file_uploader("Ganti thumbnail", type=["png", "jpg", "jpeg"])
                 with col2:
-                    if doc[6]:  # thumbnail_path
-                        st.image(doc[6], caption="Thumbnail semasa", width=150)
+                    if doc[6]: st.image(doc[6], caption="Thumbnail semasa", width=150)
                     st.write(f"Fail semasa: {doc[4]}")
 
                 if st.button("Kemaskini", type="primary"):
                     conn = get_db()
-                    updates = []
-                    params = []
+                    updates = ["title = ?", "category = ?"]
+                    params = [new_title, new_cat]
 
-                    # Update tajuk & kategori
-                    updates.append("title = ?"); params.append(new_title)
-                    updates.append("category = ?"); params.append(new_cat)
-
-                    # Ganti fail jika ada
                     if new_file:
-                        if doc[5] and os.path.exists(doc[5]):
-                            os.remove(doc[5])
+                        if doc[5] and os.path.exists(doc[5]): os.remove(doc[5])
                         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                         ext = Path(new_file.name).suffix
                         new_path = os.path.join(UPLOADS_DIR, f"{ts}_{Path(new_file.name).stem}{ext}")
-                        with open(new_path, "wb") as f:
-                            shutil.copyfileobj(new_file, f)
+                        with open(new_path, "wb") as f: shutil.copyfileobj(new_file, f)
                         new_file.seek(0)
-                        if ext.lower() == ".pdf":
-                            text = "\n".join(p.extract_text() or "" for p in PyPDF2.PdfReader(new_file).pages)
-                        else:
-                            text = "\n".join(p.text for p in Document(new_file).paragraphs)
-                        updates.append("file_path = ?"); params.append(new_path)
-                        updates.append("file_name = ?"); params.append(new_file.name)
-                        updates.append("content = ?"); params.append(text)
+                        text = "\n".join(p.extract_text() or "" for p in PyPDF2.PdfReader(new_file).pages) if ext == ".pdf" else "\n".join(p.text for p in Document(new_file).paragraphs)
+                        updates += ["file_path = ?", "file_name = ?", "content = ?"]
+                        params += [new_path, new_file.name, text]
 
-                    # Ganti thumbnail jika ada
                     if new_thumb:
-                        if doc[6] and os.path.exists(doc[6]):
-                            os.remove(doc[6])
+                        if doc[6] and os.path.exists(doc[6]): os.remove(doc[6])
                         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                         new_tpath = os.path.join(THUMBNAILS_DIR, f"{ts}_thumb{Path(new_thumb.name).suffix}")
-                        with open(new_tpath, "wb") as f:
-                            shutil.copyfileobj(new_thumb, f)
-                        updates.append("thumbnail_path = ?"); params.append(new_tpath)
+                        with open(new_tpath, "wb") as f: shutil.copyfileobj(new_thumb, f)
+                        updates.append("thumbnail_path = ?")
+                        params.append(new_tpath)
 
                     sql = f"UPDATE documents SET {', '.join(updates)} WHERE id = ?"
                     params.append(doc_id)
@@ -306,12 +313,12 @@ with st.sidebar:
                     st.rerun()
 
                 if st.button("Padam Dokumen Ini", type="secondary"):
-                    if st.checkbox("Saya pasti nak padam dokumen ini"):
+                    if st.checkbox("Saya pasti nak padam"):
                         if doc[5] and os.path.exists(doc[5]): os.remove(doc[5])
                         if doc[6] and os.path.exists(doc[6]): os.remove(doc[6])
                         conn = get_db()
                         conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
                         conn.commit()
                         conn.close()
-                        st.success("Dokumen telah dipadam!")
+                        st.success("Dokumen dipadam!")
                         st.rerun()
