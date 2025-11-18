@@ -1,3 +1,5 @@
 streamlit
 PyPDF2
 python-docx
+psycopg2-binary
+gunicorn
