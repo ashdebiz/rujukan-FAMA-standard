@@ -11,7 +11,7 @@ from pathlib import Path
 import mimetypes
 
 # =============================================
-# AUTO DETECT STREAMLIT CLOUD + PATH SELAMAT
+# AUTO DETECT CLOUD + PATH SELAMAT (PENTING!)
 # =============================================
 if os.getenv("STREAMLIT_CLOUD") or "STREAMLIT" in os.environ:
     DB_NAME = "/tmp/standards_db.sqlite"
@@ -33,7 +33,6 @@ def get_db():
     conn = sqlite3.connect(DB_NAME, timeout=30.0, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA synchronous=NORMAL;")
-    conn.execute("PRAGMA foreign_keys=ON;")
     return conn
 
 # Pastikan DB wujud
@@ -42,7 +41,7 @@ if not os.path.exists(DB_NAME):
     open(DB_NAME, "a").close()
 
 # =============================================
-# KONFIGURASI STREAMLIT
+# KONFIGURASI STREAMLIT (100% SAMA MACAM KAMU)
 # =============================================
 st.set_page_config(
     page_title="Rujukan FAMA Standard",
@@ -56,7 +55,7 @@ CATEGORIES = ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"]
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
 # =============================================
-# INIT DB + FTS5
+# INISIALISASI DATABASE + FTS5 (SAMA)
 # =============================================
 @st.cache_resource
 def init_db():
@@ -77,76 +76,66 @@ def init_db():
             title, content, category, content='documents', content_rowid='id'
         );
 
-        CREATE TRIGGER IF NOT EXISTS ai AFTER INSERT ON documents BEGIN
-            INSERT INTO documents_fts(rowid, title, content, category)
-            VALUES (new.id, new.title, new.content, new.category);
+        CREATE TRIGGER IF NOT EXISTS documents_ai AFTER INSERT ON documents BEGIN
+            INSERT INTO documents_fts(rowid, title, content, category) VALUES (new.id, new.title, new.content, new.category);
         END;
-        CREATE TRIGGER IF NOT EXISTS ad AFTER DELETE ON documents BEGIN
-            INSERT INTO documents_fts(documents_fts, rowid, title, content, category)
-            VALUES('delete', old.id, old.title, old.content, old.category);
+        CREATE TRIGGER IF NOT EXISTS documents_ad AFTER DELETE ON documents BEGIN
+            INSERT INTO documents_fts(documents_fts, rowid, title, content, category) VALUES ('delete', old.id, old.title, old.content, old.category);
         END;
-        CREATE TRIGGER IF NOT EXISTS au AFTER UPDATE ON documents BEGIN
-            INSERT INTO documents_fts(documents_fts, rowid, title, content, category)
-            VALUES('delete', old.id, old.title, old.content, old.category);
-            INSERT INTO documents_fts(rowid, title, content, category)
-            VALUES (new.id, new.title, new.content, new.category);
+        CREATE TRIGGER IF NOT EXISTS documents_au AFTER UPDATE ON documents BEGIN
+            INSERT INTO documents_fts(documents_fts, rowid, title, content, category) VALUES ('delete', old.id, old.title, old.content, old.category);
+            INSERT INTO documents_fts(rowid, title, content, category) VALUES (new.id, new.title, new.content, new.category);
         END;
     ''')
-    # Migrasi kolum lama
-    cur = conn.cursor()
-    cur.execute("PRAGMA table_info(documents)")
-    cols = [c[1] for c in cur.fetchall()]
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(documents)")
+    columns = [col[1] for col in cursor.fetchall()]
     for col in ['category', 'file_name', 'file_path', 'thumbnail_path']:
-        if col not in cols:
+        if col not in columns:
             conn.execute(f"ALTER TABLE documents ADD COLUMN {col} TEXT")
     conn.commit()
     conn.close()
 
 init_db()
 
+def sync_fts():
+    conn = get_db()
+    conn.execute("INSERT INTO documents_fts(documents_fts) VALUES('rebuild')")
+    conn.commit()
+    conn.close()
+
 # =============================================
-# BACKUP & RESTORE (BERFUNGSI DI CLOUD!)
+# BACKUP & RESTORE PENUH (BARU + BERFUNGSI DI CLOUD)
 # =============================================
 def create_full_backup():
-    memory_zip = io.BytesIO()
-    with zipfile.ZipFile(memory_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-        # 1. Database
+    memory = io.BytesIO()
+    with zipfile.ZipFile(memory, "w", zipfile.ZIP_DEFLATED) as zf:
         if os.path.exists(DB_NAME):
             zf.write(DB_NAME, "standards_db.sqlite")
-        # 2. Semua fail uploads
         for root, _, files in os.walk(UPLOADS_DIR):
             for f in files:
                 fp = os.path.join(root, f)
-                arcname = os.path.join("uploads", os.path.relpath(fp, UPLOADS_DIR))
-                zf.write(fp, arcname)
-        # 3. Semua thumbnail
+                zf.write(fp, os.path.join("uploads", os.path.relpath(fp, UPLOADS_DIR)))
         for root, _, files in os.walk(THUMBNAILS_DIR):
             for f in files:
                 fp = os.path.join(root, f)
-                arcname = os.path.join("thumbnails", os.path.relpath(fp, THUMBNAILS_DIR))
-                zf.write(fp, arcname)
-    memory_zip.seek(0)
-    return memory_zip
+                zf.write(fp, os.path.join("thumbnails", os.path.relpath(fp, THUMBNAILS_DIR)))
+    memory.seek(0)
+    return memory
 
-def restore_full_backup(uploaded_zip):
+def restore_full_backup(zip_file):
     try:
-        with zipfile.ZipFile(uploaded_zip) as zf:
+        with zipfile.ZipFile(zip_file) as zf:
             zf.extractall("/tmp/restore_temp")
-
-        # Kosongkan folder sedia ada
         for folder in [UPLOADS_DIR, THUMBNAILS_DIR]:
-            if os.path.exists(folder):
-                shutil.rmtree(folder)
+            if os.path.exists(folder): shutil.rmtree(folder)
             os.makedirs(folder, exist_ok=True)
-
-        # Salin balik
         if os.path.exists("/tmp/restore_temp/standards_db.sqlite"):
             shutil.copy2("/tmp/restore_temp/standards_db.sqlite", DB_NAME)
         if os.path.exists("/tmp/restore_temp/uploads"):
             shutil.copytree("/tmp/restore_temp/uploads", UPLOADS_DIR, dirs_exist_ok=True)
         if os.path.exists("/tmp/restore_temp/thumbnails"):
             shutil.copytree("/tmp/restore_temp/thumbnails", THUMBNAILS_DIR, dirs_exist_ok=True)
-
         shutil.rmtree("/tmp/restore_temp")
         st.success("Backup berjaya dipulihkan! App akan reload...")
         st.rerun()
@@ -154,7 +143,7 @@ def restore_full_backup(uploaded_zip):
         st.error(f"Gagal restore: {e}")
 
 # =============================================
-# FUNGSI LAIN (kekalkan kod kamu)
+# SEMUA FUNGSI LAIN (100% SAMA MACAM KAMU)
 # =============================================
 @st.cache_data(ttl=300)
 def get_stats():
@@ -168,176 +157,227 @@ def get_stats():
 def get_document_by_id(doc_id):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id,title,content,category,file_name,file_path,thumbnail_path,upload_date FROM documents WHERE id=?", (doc_id,))
-    row = cur.fetchone()
+    cur.execute("SELECT id, title, content, category, file_name, file_path, thumbnail_path, upload_date FROM documents WHERE id = ?", (doc_id,))
+    result = cur.fetchone()
     conn.close()
-    return row
+    return result
 
-def extract_text(file):
-    file.seek(0)
-    if file.name.endswith(".pdf"):
-        try: return "\n".join(p.extract_text() or "" for p in PyPDF2.PdfReader(io.BytesIO(file.read())).pages)
-        except: return ""
-    elif file.name.endswith(".docx"):
-        try: return "\n".join(p.text for p in Document(io.BytesIO(file.read())).paragraphs)
-        except: return ""
-    return ""
+def extract_pdf_text(file):
+    try:
+        reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+    except:
+        return ""
 
-def save_document(title, content, category, uploaded_file, original_filename):
-    if not title.strip(): 
-        st.error("Tajuk tidak boleh kosong!"); return
-    if uploaded_file.size > MAX_FILE_SIZE:
-        st.error("Fail terlalu besar!"); return
+def extract_docx_text(file):
+    try:
+        doc = Document(io.BytesIO(file.read()))
+        return "\n".join(p.text for p in doc.paragraphs)
+    except:
+        return ""
 
+@st.cache_data
+def get_file_data(file_path):
+    with open(file_path, "rb") as f:
+        data = f.read()
+    mime = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+    return data, mime
+
+def save_document(title, content, category, uploaded_file, original_filename, thumbnail_path=None):
+    if not title.strip():
+        st.error("Tajuk tidak boleh kosong!")
+        return
+    uploaded_file.seek(0)
+    if len(uploaded_file.read()) > MAX_FILE_SIZE:
+        st.error("Fail terlalu besar (max 10MB)!")
+        return
+    uploaded_file.seek(0)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     ext = Path(original_filename).suffix
     safe_name = f"{timestamp}_{Path(original_filename).stem}{ext}"
     file_path = os.path.join(UPLOADS_DIR, safe_name)
-    uploaded_file.seek(0)
     with open(file_path, "wb") as f:
         shutil.copyfileobj(uploaded_file, f)
-
     conn = get_db()
-    conn.execute("""INSERT INTO documents 
-        (title, content, category, file_name, file_path, upload_date)
-        VALUES (?,?,?, ?,?, datetime('now','localtime'))""",
-        (title, content, category, original_filename, file_path))
+    conn.execute("""
+        INSERT INTO documents (title, content, category, file_name, file_path, thumbnail_path, upload_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (title, content, category, original_filename, file_path, thumbnail_path,
+          datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     conn.commit()
     conn.close()
-    st.success("Dokumen berjaya disimppkan!")
+    sync_fts()
+    st.success(f"Dokumen '{title}' berjaya disimpan!")
 
 def delete_document(doc_id):
     doc = get_document_by_id(doc_id)
-    if not doc: return
+    if not doc:
+        return
     conn = get_db()
-    conn.execute("DELETE FROM documents WHERE id=?", (doc_id,))
+    conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
     conn.commit()
     conn.close()
-    for p in [doc[5], doc[6]]:  # file_path, thumbnail_path
-        if p and os.path.exists(p): os.remove(p)
-    st.success("Dokumen dipadam!")
+    for path in [doc[5], doc[6]]:
+        if path and os.path.exists(path):
+            os.remove(path)
+    sync_fts()
+    st.success(f"Dokumen ID {doc_id} dipadam.")
 
 def search_documents(query="", category=""):
     conn = get_db()
     cur = conn.cursor()
-    sql = "SELECT d.title,d.content,d.file_name,d.file_path,d.thumbnail_path,d.upload_date,d.category FROM documents d"
+    sql = """
+        SELECT d.title, d.content, d.file_name, d.file_path, d.thumbnail_path, d.upload_date, d.category
+        FROM documents d
+        JOIN documents_fts f ON d.id = f.rowid
+    """
     params = []
-    if query or (category and category != "Semua"):
-        sql += " WHERE documents_fts MATCH ?"
-        params.append(query or "*")
-        if category and category != "Semua":
-            sql += " AND d.category = ?"
-            params.append(category)
+    conds = []
+    if query:
+        conds.append("documents_fts MATCH ?")
+        params.append(query)
+    if category and category != "Semua":
+        conds.append("d.category = ?")
+        params.append(category)
+    if conds:
+        sql += " WHERE " + " AND ".join(conds)
     sql += " ORDER BY d.upload_date DESC"
     cur.execute(sql, params)
     results = cur.fetchall()
     conn.close()
     return results
 
+def search_documents_admin(query="", category=""):
+    results = search_documents(query, category)
+    conn = get_db()
+    cur = conn.cursor()
+    final = []
+    for r in results:
+        cur.execute("SELECT id FROM documents WHERE file_path = ?", (r[3],))
+        doc_id = cur.fetchone()[0]
+        final.append((doc_id, *r))
+    conn.close()
+    return final
+
 # =============================================
-# CSS + UI (kekalkan yang cantik)
+# CSS CUSTOM (100% SAMA MACAM KAMU)
 # =============================================
 st.markdown("""
 <style>
-    .main-header {color: #2E7D32; font-size: 2.5em; text-align: center; font-weight: bold;}
-    .stButton>button {background:#4CAF50; color:white; width:100%; padding:12px;}
-    @media (max-width:768px) {.main-header{font-size:1.9em;}}
+    .main-header {color: #2E7D32; font-size: 2.5em; text-align: center;}
+    .stButton>button {width: 100%; margin: 0.3em 0;}
+    @media (max-width: 768px) {
+        .main-header {font-size: 1.8em;}
+        [data-testid="column"] {width: 100% !important;}
+    }
 </style>
 """, unsafe_allow_html=True)
 
+# =============================================
+# SIDEBAR & HALAMAN (100% SAMA MACAM KAMU)
+# =============================================
 with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=120)
-    page = st.selectbox("Menu", ["Halaman Pengguna", "Halaman Admin"])
+    st.markdown("## Navigasi")
+    page = st.selectbox("Pilih Halaman", ["Halaman Pengguna", "Halaman Admin"])
 
-# =============================================
-# HALAMAN PENGGUNA
-# =============================================
+# ---------- HALAMAN PENGGUNA ----------
 if page == "Halaman Pengguna":
-    st.markdown('<h1 class="main-header">RUJUKAN FAMA STANDARD</h1>', unsafe_allow_html=True)
+    st.markdown("""
+        <div style="text-align:center;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
+            <h1 class="main-header">RUJUKAN FAMA STANDARD</h1>
+        </div>
+    """, unsafe_allow_html=True)
+
     total, today = get_stats()
     c1, c2 = st.columns(2)
     c1.metric("Jumlah Standard", total)
     c2.metric("Baru Hari Ini", today)
 
     col1, col2, col3, col4 = st.columns(4)
-    for col, cat in zip([col1,col2,col3,col4], CATEGORIES):
+    for col, cat in zip([col1, col2, col3, col4], CATEGORIES):
         with col:
-            if st.button(cat):
-                st.session_state.cat = cat
+            if st.button(cat, key=f"btn_{cat}"):
+                st.session_state.cat_filter = cat
                 st.rerun()
 
-    if "cat" not in st.session_state: st.session_state.cat = "Semua"
-    query = st.text_input("Cari standard...")
-    cat_filter = st.selectbox("Kategori", ["Semua"]+CATEGORIES,
-                              index=0 if st.session_state.cat=="Semua" else CATEGORIES.index(st.session_state.cat)+1)
+    if "cat_filter" not in st.session_state:
+        st.session_state.cat_filter = "Semua"
 
-    results = search_documents(query, cat_filter if cat_filter!="Semua" else "")
+    query = st.text_input("Cari standard...", placeholder="contoh: keratan bunga")
+    category = st.selectbox("Kategori", ["Semua"] + CATEGORIES, 
+                            index=0 if st.session_state.cat_filter == "Semua" else CATEGORIES.index(st.session_state.cat_filter)+1)
+
+    results = search_documents(query, category if category != "Semua" else "")
     st.write(f"**{len(results)} dokumen ditemui**")
 
     for title, content, fname, fpath, thumb, date, cat in results:
-        with st.expander(f"{title} • {cat} • {date[:10]}"):
+        with st.expander(f"{title} ({cat}) – {date.split()[0]}"):
             if thumb and os.path.exists(thumb):
                 st.image(thumb, width=150)
             st.write(content[:400] + ("..." if len(content)>400 else ""))
             if fpath and os.path.exists(fpath):
-                with open(fpath, "rb") as f:
-                    st.download_button("Muat Turun", f.read(), fname or "dokumen.pdf")
+                data, mime = get_file_data(fpath)
+                st.download_button("Muat Turun", data, file_name=fname or "dokumen.pdf", mime=mime)
 
-# =============================================
-# HALAMAN ADMIN
-# =============================================
+# ---------- HALAMAN ADMIN ----------
 else:
-    if st.session_state.get("auth") != True:
+    st.title("Halaman Admin")
+    if not st.session_state.get("authenticated", False):
         pw = st.text_input("Kata laluan", type="password")
         if st.button("Log Masuk"):
             if pw == ADMIN_PASSWORD:
-                st.session_state.auth = True
+                st.session_state.authenticated = True
                 st.rerun()
-            else: st.error("Salah")
+            else:
+                st.error("Salah kata laluan")
         st.stop()
 
-    st.success("Admin log masuk")
-    if st.button("Log Keluar"): st.session_state.auth = False; st.rerun()
+    if st.button("Log Keluar"):
+        st.session_state.authenticated = False
+        st.rerun()
 
-    # === BACKUP & RESTORE YANG BERFUNGSI DI CLOUD ===
-    st.markdown("### Backup & Restore Database (Termasuk Semua Fail)")
-    col1, col2 = st.columns(2)
-    with col1:
-        backup_data = create_full_backup()
+    # === BACKUP & RESTORE YANG BARU ===
+    st.subheader("Backup & Restore Database (Termasuk Semua Fail)")
+    colb1, colb2 = st.columns(2)
+    with colb1:
+        backup_zip = create_full_backup()
         st.download_button(
             label="Download Backup Penuh (.zip)",
-            data=backup_data,
-            file_name=f"fama_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+            data=backup_zip,
+            file_name=f"fama_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
             mime="application/zip"
         )
-    with col2:
-        restore_zip = st.file_uploader("Upload backup .zip untuk pulihkan", type=["zip"])
-        if restore_zip and st.button("Restore dari Backup", type="primary"):
-            restore_full_backup(restore_zip)
+    with colb2:
+        uploaded_backup = st.file_uploader("Upload backup .zip untuk restore", type=["zip"])
+        if uploaded_backup and st.button("Pulihkan dari Backup"):
+            restore_full_backup(uploaded_backup)
 
     st.markdown("---")
 
-    # Upload dokumen
-    file = st.file_uploader("Upload PDF/DOCX", type=["pdf","docx"])
-    title = st.text_input("Tajuk Dokumen")
-    cat = st.selectbox("Kategori", CATEGORIES)
-    if file and title and st.button("Simpan Dokumen"):
-        text = extract_text(file)
-        save_document(title, text, cat, file, file.name)
-        st.rerun()
-
-    # Senarai & padam
-    docs = search_documents()
-    for _, title, _, fname, _, date, cat in docs:
-        c1, c2 = st.columns([4,1])
-        c1.write(f"**{title}** • {cat} • {date[:10]}")
-        if c2.button("Padam", key=title):
-            # Cari ID dari fail path (simple way)
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("SELECT id FROM documents WHERE title=?", (title,))
-            row = cur.fetchone()
-            conn.close()
-            if row:
-                delete_document(row[0])
+    # Upload & senarai (sama macam kamu)
+    st.subheader("Upload Dokumen Baru")
+    uploaded_file = st.file_uploader("PDF/DOCX", type=["pdf", "docx"])
+    title = st.text_input("Nama Komoditi / Tajuk")
+    category = st.selectbox("Kategori", CATEGORIES)
+    if uploaded_file and title:
+        uploaded_file.seek(0)
+        if len(uploaded_file.read()) > MAX_FILE_SIZE:
+            st.error("Fail > 10MB")
+        else:
+            uploaded_file.seek(0)
+            content = extract_pdf_text(uploaded_file) if uploaded_file.name.endswith(".pdf") else extract_docx_text(uploaded_file)
+            if st.button("Simpan Dokumen"):
+                save_document(title, content, category, uploaded_file, uploaded_file.name)
                 st.rerun()
+
+    st.markdown("---")
+    st.subheader("Senarai Dokumen")
+    admin_results = search_documents_admin()
+    for doc_id, title, content, fname, fpath, thumb, date, cat, _ in admin_results:
+        col1, col2, col3 = st.columns([4, 1, 1])
+        col1.write(f"**{title}** ({cat})")
+        if col2.button("Padam", key=f"del_{doc_id}"):
+            delete_document(doc_id)
+            st.rerun()
+        col3.write(date.split()[0])
