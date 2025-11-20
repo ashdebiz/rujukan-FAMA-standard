@@ -105,6 +105,7 @@ with st.sidebar:
 # HALAMAN UTAMA
 # =============================================
 if page == "Halaman Utama":
+    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
     st.markdown('<div class="header"><h1>RUJUKAN FAMA STANDARD</h1><h3>Regulasi Pasaran</h3></div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns([3,1])
