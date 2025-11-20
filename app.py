@@ -12,7 +12,7 @@ import qrcode
 from PIL import Image
 
 # =============================================
-# TEMA CANTIK FAMA (100% PAKSA LIGHT)
+# TEMA CANTIK FAMA
 # =============================================
 st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="rice", layout="centered")
 
@@ -34,7 +34,7 @@ os.makedirs("uploads", exist_ok=True)
 os.makedirs("thumbnails", exist_ok=True)
 
 DB_NAME = "fama_standards.db"
-CATEGORIES = ["Keratan Bunga", "Sayur-sayanan", "Buah-buahan", "Lain-lain"]
+CATEGORIES = ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"]
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -69,11 +69,9 @@ def extract_text(file):
     try:
         data = file.getvalue()
         if file.name.lower().endswith(".pdf"):
-            reader = PyPDF2.PdfReader(io.BytesIO(data))
-            return " ".join(page.extract_text() or "" for page in reader.pages)
+            return " ".join(p.extract_text() or "" for p in PyPDF2.PdfReader(io.BytesIO(data)).pages)
         elif file.name.lower().endswith(".docx"):
-            doc = Document(io.BytesIO(data))
-            return " ".join(p.text for p in doc.paragraphs)
+            return " ".join(p.text for p in Document(io.BytesIO(data)).paragraphs)
     except: pass
     return ""
 
@@ -134,7 +132,7 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — 100% TAK ERROR!
+# ADMIN PANEL — 100% BERSIH & STABIL
 # =============================================
 else:
     if not st.session_state.get("admin"):
@@ -155,7 +153,7 @@ else:
 
     st.markdown(f'<div class="header"><h1>Selamat Datang, {st.session_state.user.upper()}!</h1></div>', unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["Tambah Standard", "Senarai"])
+    tab1, tab2 = st.tabs(["Tambah Standard", "Senarai & QR"])
 
     with tab1:
         st.markdown("### Tambah Standard Baru")
@@ -167,7 +165,6 @@ else:
         if file and title:
             if st.button("SIMPAN STANDARD", type="primary", use_container_width=True):
                 with st.spinner("Sedang simpan..."):
-                    # Simpan fail utama
                     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                     ext = Path(file.name).suffix
                     new_name = f"{ts}_{Path(file.name).stem}{ext}"
@@ -175,19 +172,16 @@ else:
                     with open(file_path, "wb") as f:
                         shutil.copyfileobj(file, f)
 
-                    # Simpan thumbnail — DENGAN SEMAKAN 100% SELAMAT
                     thumb_path = None
-                    if thumb is not None:  # ← INI YANG BETUL!
+                    if thumb is not None:
                         try:
                             thumb_path = os.path.join("thumbnails", f"thumb_{ts}.jpg")
                             img = Image.open(thumb).convert("RGB")
                             img.thumbnail((350, 500))
                             img.save(thumb_path, "JPEG", quality=95)
-                        except Exception as e:
-                            st.warning("Thumbnail gagal disimpan, tapi standard tetap disimpan.")
-                            thumb_path = None
+                        except:
+                            st.warning("Thumbnail gagal — standard tetap disimpan")
 
-                    # Simpan ke database
                     content = extract_text(file)
                     conn = sqlite3.connect(DB_NAME)
                     conn.execute("""INSERT INTO documents 
@@ -199,13 +193,13 @@ else:
                     new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
                     conn.close()
 
-                    st.success(f"BERJAYA! ID Standard: **{new_id}**")
+                    st.success(f"BERJAYA! ID: **{new_id}**")
                     st.balloons()
 
     with tab2:
         for d in get_docs():
             id_, title, cat, fname, fpath, thumb, date, uploader = d
-            with st.expander(f"ID {id_} • {title}"):
+            with st.expander(f"ID {id_} • {title} • {cat}"):
                 col1, col2 = st.columns(2)
                 with col1:
                     img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/300x420.png?text=FAMA"
@@ -214,7 +208,8 @@ else:
                     st.write(f"**Uploader:** {uploader} • **Tarikh:** {date[:10]}")
                     qr = generate_qr(id_)
                     st.image(qr, width=180)
-                    st.download_button("QR Code", qr, f"QR_{id_}.png", "image/png", key=f"qr{id{id_}")
+                    # FIXED: Key betul sekarang!
+                    st.download_button("Muat Turun QR", qr, f"QR_{id_}.png", "image/png", key=f"qr_{id_}")
 
     if st.button("Log Keluar"):
         st.session_state.admin = False
