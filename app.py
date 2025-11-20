@@ -15,7 +15,7 @@ from PIL import Image
 # KONFIGURASI & TEMA CANTIK FAMA
 # =============================================
 st.set_page_config(
-    page_title="Rujukan Standard FAMA",
+    page_title="Rujukan FAMA Standard",
     page_icon="leaf",
     layout="centered",
     initial_sidebar_state="expanded"
@@ -137,7 +137,7 @@ if page == "Halaman Utama":
         <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; width:100%;">
             <h1 style="color:white; font-size:3.3rem; font-weight:900; margin:0; 
                        text-shadow: 4px 4px 15px rgba(0,0,0,0.8);">
-                RUJUKAN STANDARD FAMA
+                RUJUKAN FAMA STANDARD 
             </h1>
             <p style="color:#e8f5e8; font-size:1.5rem; margin:20px 0 0;
                       text-shadow: 2px 2px 8px rgba(0,0,0,0.7);">
