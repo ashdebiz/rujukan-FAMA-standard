@@ -9,180 +9,167 @@ import io
 from pathlib import Path
 
 # =============================================
-# GOOGLE DRIVE — PAKAI SERVICE ACCOUNT (100% JALAN!)
+# AUTO MOUNT GOOGLE DRIVE (CARA PALING SENANG 2025)
 # =============================================
 st.set_page_config(page_title="RUJUKAN FAMA STANDARD", page_icon="leaves", layout="centered")
 
-# Pastikan service-account.json ada di repo
-if not os.path.exists("service-account.json"):
-    st.error("service-account.json tak jumpa! Letak di repo kau.")
-    st.stop()
+# Mount Drive (pertama kali je kena allow)
+if not os.path.exists("/content/drive"):
+    from google.colab import drive
+    drive.mount('/content/drive')
+    st.success("Google Drive berjaya disambung! Data kekal selamanya!")
+else:
+    st.sidebar.success("Drive dah sambung")
 
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
-import io as io_lib
+# Folder utama di Drive kau (ubah kalau nak folder lain)
+DRIVE_ROOT = "/content/drive/MyDrive/FAMA_STANDARD_APP"
+DB_PATH = f"{DRIVE_ROOT}/fama_standards.db"
+UPLOADS_DIR = f"{DRIVE_ROOT}/uploads"
+THUMBNAILS_DIR = f"{DRIVE_ROOT}/thumbnails"
 
-# Setup Drive
-SCOPES = ['https://www.googleapis.com/auth/drive']
-creds = Credentials.from_service_account_file("service-account.json", scopes=SCOPES)
-drive = build('drive', 'v3', credentials=creds)
+# Buat folder kalau tak wujud
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+os.makedirs(THUMBNAILS_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
-# Folder ID kau
-ROOT_FOLDER_ID = "1RHHcCLR-n7k2rcwZr-QBFBD0KKpcAYTy"
+# =============================================
+# DATABASE
+# =============================================
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
 
-# Auto buat subfolder
-def folder_id(name, parent):
-    q = f"name='{name}' and mimeType='application/vnd.google-apps.folder' and '{parent}' in parents and trashed=false"
-    r = drive.files().list(q=q, fields="files(id)").execute().get('files', [])
-    if r:
-        return r[0]['id']
-    else:
-        f = drive.files().create(body={'name': name, 'mimeType': 'application/vnd.google-apps.folder', 'parents': [parent]}, fields='id').execute()
-        return f['id']
-
-UPLOADS_ID = folder_id("uploads", ROOT_FOLDER_ID)
-THUMBS_ID = folder_id("thumbnails", ROOT_FOLDER_ID)
-DB_ID = folder_id("db", ROOT_FOLDER_ID)
-
-st.success("Google Drive berjaya disambung!")
-
-# Local
-os.makedirs("tmp", exist_ok=True)
-DB_PATH = "tmp/fama.db"
-
-# Download DB
-def pull_db():
-    q = f"name='fama.db' and '{DB_ID}' in parents"
-    r = drive.files().list(q=q, fields="files(id)").execute().get('files', [])
-    if r:
-        fid = r[0]['id']
-        req = drive.files().get_media(fileId=fid)
-        fh = io_lib.BytesIO()
-        down = MediaIoBaseDownload(fh, req)
-        done = False
-        while not done:
-            _, done = down.next_chunk()
-        with open(DB_PATH, "wb") as f:
-            f.write(fh.getbuffer())
-        return True
-    return False
-
-# Upload DB
-def push_db():
-    media = MediaFileUpload(DB_PATH)
-    q = f"name='fama.db' and '{DB_ID}' in parents"
-    r = drive.files().list(q=q).execute().get('files', [])
-    if r:
-        drive.files().update(fileId=r[0]['id'], media_body=media).execute()
-    else:
-        drive.files().create(body={'name': 'fama.db', 'parents': [DB_ID]}, media_body=media).execute()
-
-# Upload fail
-def upload(path, parent):
-    name = Path(path).name
-    media = MediaFileUpload(path)
-    f = drive.files().create(body={'name': name, 'parents': [parent]}, media_body=media, fields='id').execute()
-    return f['id']
-
-# Init DB
-pull_db() or st.info("Database baru dibuat.")
-conn = sqlite3.connect(DB_PATH)
-conn.execute('''CREATE TABLE IF NOT EXISTS docs (
-    id INTEGER PRIMARY KEY,
-    title TEXT, content TEXT, cat TEXT,
-    fname TEXT, fid TEXT, tid TEXT, date TEXT
-)''')
+# Buat table kalau tak ada
+conn = get_db()
+conn.execute('''
+    CREATE TABLE IF NOT EXISTS docs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        content TEXT,
+        category TEXT DEFAULT 'Lain-lain',
+        file_name TEXT,
+        file_path TEXT,
+        thumb_path TEXT,
+        upload_date TEXT
+    )
+''')
 conn.commit()
 conn.close()
 
 # =============================================
-# TAJUK FAMA
+# TAJUK FAMA CANTIK
 # =============================================
 st.markdown("""
-<div style="text-align:center; padding:20px;">
+<div style="text-align:center; padding:30px 0;">
     <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
-    <h1 style="color:#2E7D32;">RUJUKAN FAMA STANDARD</h1>
-    <p style="color:#388E3C; font-size:1.5em;">KELUARAN HASIL PERTANIAN</p>
+    <h1 style="color:#2E7D32; margin:10px 0;">RUJUKAN FAMA STANDARD</h1>
+    <p style="color:#388E3C; font-size:1.6em;">KELUARAN HASIL PERTANIAN</p>
 </div>
 """, unsafe_allow_html=True)
 
 # =============================================
-# ADMIN
+# STATISTIK
+# =============================================
+conn = get_db()
+total = conn.execute("SELECT COUNT(*) FROM docs").fetchone()[0]
+today = conn.execute("SELECT COUNT(*) FROM docs WHERE date(upload_date) = date('now')").fetchone()[0]
+conn.close()
+
+c1, c2 = st.columns(2)
+c1.metric("JUMLAH STANDARD", total)
+c2.metric("BARU HARI INI", today)
+
+# =============================================
+# ADMIN PANEL
 # =============================================
 with st.sidebar:
-    st.header("Admin")
-    if st.text_input("Password", type="password") == "admin123":
-        st.success("Login OK!")
-        
-        f = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
-        t = st.file_uploader("Thumbnail", type=["png","jpg","jpeg"])
+    st.header("Admin Panel")
+    pw = st.text_input("Password", type="password")
+    
+    if pw == "admin123":
+        st.success("Login Berjaya!")
+
+        uploaded_file = st.file_uploader("Upload PDF/DOCX", type=["pdf","docx"])
+        thumbnail = st.file_uploader("Thumbnail (gambar)", type=["png","jpg","jpeg"])
         title = st.text_input("Tajuk Standard")
-        cat = st.selectbox("Kategori", ["Keratan Bunga","Sayur-sayuran","Buah-buahan","Lain-lain"])
-        
+        category = st.selectbox("Kategori", ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"])
+
         if st.button("SIMPAN STANDARD", type="primary"):
-            if f and title:
-                # Upload PDF
-                p1 = f"tmp/{f.name}"
-                with open(p1, "wb") as x:
-                    x.write(f.getbuffer())
-                fid = upload(p1, UPLOADS_ID)
-                
-                # Upload thumb
-                tid = None
-                if t:
-                    p2 = f"tmp/thumb_{t.name}"
-                    with open(p2, "wb") as x:
-                        x.write(t.getbuffer())
-                    tid = upload(p2, THUMBS_ID)
-                
+            if uploaded_file and title:
+                # Simpan file
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                file_ext = Path(uploaded_file.name).suffix
+                new_path = os.path.join(UPLOADS_DIR, f"{ts}_{uploaded_file.name}")
+                with open(new_path, "wb") as f:
+                    shutil.copyfileobj(uploaded_file, f)
+
+                # Simpan thumbnail
+                thumb_path = None
+                if thumbnail:
+                    thumb_path = os.path.join(THUMBNAILS_DIR, f"{ts}_thumb{Path(thumbnail.name).suffix}")
+                    with open(thumb_path, "wb") as f:
+                        shutil.copyfileobj(thumbnail, f)
+
                 # Extract text
-                f.seek(0)
+                uploaded_file.seek(0)
                 text = ""
-                if f.name.endswith(".pdf"):
-                    text = "\n".join(p.extract_text() or "" for p in PyPDF2.PdfReader(f).pages)
-                else:
-                    text = "\n".join(p.text for p in Document(f).paragraphs)
-                
-                # Simpan DB
-                conn = sqlite3.connect(DB_PATH)
-                conn.execute("INSERT INTO docs(title,content,cat,fname,fid,tid,date) VALUES(?,?,?,?,?,?,?)",
-                            (title, text, cat, f.name, fid, tid, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                if uploaded_file.name.endswith(".pdf"):
+                    reader = PyPDF2.PdfReader(uploaded_file)
+                    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+                elif uploaded_file.name.endswith(".docx"):
+                    doc = Document(uploaded_file)
+                    text = "\n".join(p.text for p in doc.paragraphs)
+
+                # Simpan ke DB
+                conn = get_db()
+                conn.execute("""INSERT INTO docs 
+                    (title, content, category, file_name, file_path, thumb_path, upload_date)
+                    VALUES (?,?,?, ?,?,?,?)""",
+                    (title, text, category, uploaded_file.name, new_path, thumb_path, datetime.now().strftime("%Y-%m-%d %H:%M")))
                 conn.commit()
                 conn.close()
-                push_db()
-                
-                st.success("BERJAYA DISIMPAN!")
+
+                st.success(f"Berjaya simpan: {title}")
                 st.balloons()
                 st.rerun()
 
 # =============================================
-# CARIAN
+# CARIAN & SENARAI
 # =============================================
-q = st.text_input("Cari standard:")
-conn = sqlite3.connect(DB_PATH)
+search = st.text_input("Cari standard:")
+conn = get_db()
 cur = conn.cursor()
-sql = "SELECT title, content, cat, fname, fid, tid, date FROM docs WHERE 1=1"
-p = []
-if q:
+
+sql = "SELECT title, content, category, file_name, file_path, thumb_path, upload_date FROM docs WHERE 1=1"
+params = []
+
+if search:
     sql += " AND (title LIKE ? OR content LIKE ?)"
-    p += [f"%{q}%", f"%{q}%"]
-sql += " ORDER BY date DESC"
-cur.execute(sql, p)
-rows = cur.fetchall()
+    params.extend([f"%{search}%", f"%{search}%"])
+
+sql += " ORDER BY upload_date DESC"
+cur.execute(sql, params)
+results = cur.fetchall()
 conn.close()
 
-st.write(f"**Ditemui {len(rows)} standard**")
+st.write(f"**Ditemui {len(results)} standard**")
 
-for r in rows:
-    title, content, cat, fname, fid, tid, date = r
+for row in results:
+    title, content, cat, fname, fpath, tpath, date = row
     with st.expander(f"{title} • {cat} • {date[:10]}"):
-        c1, c2 = st.columns([1,3])
-        with c1:
-            if tid:
-                st.image(f"https://drive.google.com/uc?id={tid}", use_column_width=True)
-            else:
-                st.image("https://via.placeholder.com/150x200/4CAF50/white?text=No+Image")
-        with c2:
-            st.write(content[:600] + ("..." if len(content)>600 else ""))
-            st.markdown(f"[Muat Turun PDF](https://drive.google.com/uc?id={fid})")
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            img = tpath if tpath and os.path.exists(tpath) else "https://via.placeholder.com/150x200/4CAF50/white?text=FAMA"
+            st.image(img, use_column_width=True)
+        with col2:
+            st.write(content[:700] + ("..." if len(content) > 700 else ""))
+            if os.path.exists(fpath):
+                with open(fpath, "rb") as f:
+                    st.download_button("Muat Turun PDF", f.read(), file_name=fname, key=f"dl_{title}")
+
+# =============================================
+# FOOTER
+# =============================================
+st.markdown("---")
+st.markdown("<p style='text-align:center; color:#666;'>App ini menggunakan Google Drive anda • Data kekal selamanya</p>", unsafe_allow_html=True)
