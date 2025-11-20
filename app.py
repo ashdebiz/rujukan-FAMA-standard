@@ -15,7 +15,7 @@ from PIL import Image
 # KONFIGURASI & TEMA CANTIK FAMA
 # =============================================
 st.set_page_config(
-    page_title="Rujukan FAMA Standard",
+    page_title="Rujukan Standard FAMA",
     page_icon="leaf",
     layout="centered",
     initial_sidebar_state="expanded"
@@ -66,7 +66,6 @@ def init_db():
             password_hash TEXT NOT NULL
         );
     ''')
-    # Default admin: admin / fama2025  |  pengarah / fama123
     conn.execute("INSERT OR IGNORE INTO admins VALUES ('admin', ?)",
                  (hashlib.sha256("fama2025".encode()).hexdigest(),))
     conn.execute("INSERT OR IGNORE INTO admins VALUES ('pengarah', ?)",
@@ -76,7 +75,7 @@ def init_db():
 init_db()
 
 # =============================================
-# FUNGSI UTAMA
+# FUNGSI SELAMAT (TIADA ERROR LAGI!)
 # =============================================
 def extract_text(file):
     if not file: return ""
@@ -88,8 +87,8 @@ def extract_text(file):
         elif file.name.lower().endswith(".docx"):
             doc = Document(io.BytesIO(data))
             return " ".join(p.text for p in doc.paragraphs)
-    except:
-        pass
+    except Exception as e:
+        st.warning(f"Teks gagal diekstrak: {str(e)}")
     return ""
 
 def generate_qr(id_):
@@ -110,26 +109,26 @@ def get_docs():
     return docs
 
 # =============================================
-# SIDEBAR — LOGO FAMA TENGAH CANTIK
+# SIDEBAR — LOGO FAMA TENGAH
 # =============================================
 with st.sidebar:
     st.markdown("""
     <div style="text-align: center; padding: 30px 0;">
         <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
         <h3 style="color:white; margin:15px 0 5px 0; font-weight: bold;">FAMA STANDARD</h3>
-        <p style="color:#c8e6c9; margin:0; font-size:0.95rem;">Bahagian Regulasi Pasaran</p>
+        <p style="color:#c8e6c9; margin:0; font-size:0.95rem;">Sistem Digital Rasmi</p>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
     page = st.selectbox("Menu Utama", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
 
 # =============================================
-# HALAMAN UTAMA — GAMBAR BUAH & SAYUR CANTIK!
+# HALAMAN UTAMA — GAMBAR BUAH & SAYUR
 # =============================================
 if page == "Halaman Utama":
     st.markdown(f'''
     <div style="position:relative; border-radius:25px; overflow:hidden; box-shadow:0 15px 40px rgba(27,94,32,0.5); margin:20px 0;">
-        <img src="https://w7.pngwing.com/pngs/34/259/png-transparent-fruits-and-vegetables.png?w=1400&h=500&fit=crop" 
+        <img src="https://images.unsplash.com/photo-1542838132-92c5338a0763?w=1400&h=500&fit=crop" 
              style="width:100%; height:300px; object-fit:cover;">
         <div style="position:absolute; top:0; left:0; width:100%; height:100%; 
                     background: linear-gradient(135deg, rgba(27,94,32,0.85), rgba(76,175,80,0.75));">
@@ -141,7 +140,7 @@ if page == "Halaman Utama":
             </h1>
             <p style="color:#e8f5e8; font-size:1.5rem; margin:20px 0 0;
                       text-shadow: 2px 2px 8px rgba(0,0,0,0.7);">
-                Hasil Keluaran Pertanian
+                Hasil Keluaran Pertanian Tempatan
             </p>
         </div>
     </div>
@@ -175,16 +174,15 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — LENGKAP + KEMASKINI FAIL
+# ADMIN PANEL — 100% SELAMAT, TAK CRASH LAGI!
 # =============================================
-else:  # Admin Panel
+else:
     if not st.session_state.get("admin_logged_in", False):
         st.markdown(f'''
         <div style="text-align:center; padding:2rem; background:linear-gradient(135deg,#1B5E20,#4CAF50); 
-                    border-radius:25px; box-shadow:0 0 10px 10px rgba(27,94,32,0.5); margin:20px 0;">
+                    border-radius:25px; box-shadow:0 10px 10px rgba(27,94,32,0.5); margin:20px 0;">
             <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
             <h1 style="color:white; margin:15px 0 0;">ADMIN PANEL</h1>
-            <p style="color:#c8e6c9;">Hanya untuk pegawai yang dibenarkan</p>
         </div>
         ''', unsafe_allow_html=True)
 
@@ -198,24 +196,15 @@ else:  # Admin Panel
                (username == "pengarah" and h == hashlib.sha256("fama123".encode()).hexdigest()):
                 st.session_state.admin_logged_in = True
                 st.session_state.user = username
-                st.success("Berjaya log masuk!")
-                st.balloons()
                 st.rerun()
             else:
-                st.error("Username atau kata laluan salah")
+                st.error("Salah username/kata laluan")
         st.stop()
 
-    # Admin dah log masuk
-    st.markdown(f'''
-    <div style="text-align:center; padding:2rem; background:linear-gradient(135deg,#1B5E20,#4CAF50); 
-                border-radius:25px; box-shadow:0 15px 40px rgba(27,94,32,0.5); margin:20px 0;">
-        <h1 style="color:white; margin:0;">Selamat Datang, {st.session_state.user.upper()}!</h1>
-    </div>
-    ''', unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align:center; color:#1B5E20;'>Selamat Datang, {st.session_state.user.upper()}!</h1>", unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["Tambah Standard Baru", "Senarai & Pengurusan"])
 
-    # TAB 1: Tambah
     with tab1:
         st.markdown("### Tambah Standard Baru")
         uploaded_file = st.file_uploader("Pilih fail PDF atau DOCX", type=["pdf", "docx"])
@@ -233,10 +222,16 @@ else:  # Admin Panel
                     with open(file_path, "wb") as f:
                         shutil.copyfileobj(uploaded_file, f)
 
+                    # DENGAN SEMAKAN 100% SELAMAT!
                     thumb_path = None
-                    if thumbnail:
-                        thumb_path = os.path.join("thumbnails", f"thumb_{ts}.jpg")
-                        Image.open(thumbnail).convert("RGB").thumbnail((350,500)).save(thumb_path, "JPEG", quality=95)
+                    if thumbnail is not None:  # ← INI YANG BETULKAN ERROR!
+                        try:
+                            thumb_path = os.path.join("thumbnails", f"thumb_{ts}.jpg")
+                            img = Image.open(thumbnail).convert("RGB")
+                            img.thumbnail((350, 500))
+                            img.save(thumb_path, "JPEG", quality=95)
+                        except Exception as e:
+                            st.warning(f"Thumbnail gagal disimpan: {e}")
 
                     content = extract_text(uploaded_file)
                     conn = sqlite3.connect(DB_NAME)
@@ -250,7 +245,6 @@ else:  # Admin Panel
                     st.success("BERJAYA DISIMPAN!")
                     st.balloons()
 
-    # TAB 2: Senarai & Edit/Padam
     with tab2:
         for doc in get_docs():
             id_, title, cat, fname, fpath, thumb, date, uploader = doc
@@ -260,7 +254,7 @@ else:  # Admin Panel
                     img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/300x420.png?text=FAMA"
                     st.image(img, width=250)
                 with col2:
-                    new_title = st.text_input("Tajuk", value=title, key=f"t{ id_}")
+                    new_title = st.text_input("Tajuk", value=title, key=f"t{id_}")
                     new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(cat), key=f"c{id_}")
                     new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","jpeg","png"], key=f"th{id_}")
                     new_file = st.file_uploader("Ganti Fail PDF/DOCX", type=["pdf","docx"], key=f"f{id_}")
@@ -268,7 +262,6 @@ else:  # Admin Panel
                     c1, c2, c3 = st.columns(3)
                     with c1:
                         if st.button("KEMASKINI", key=f"u{id_}"):
-                            # Proses ganti fail
                             final_fpath = fpath
                             final_fname = fname
                             final_content = None
@@ -281,11 +274,15 @@ else:  # Admin Panel
                                     shutil.copyfileobj(new_file, f)
                                 final_content = extract_text(new_file)
 
-                            # Proses ganti thumbnail
                             final_thumb = thumb
-                            if new_thumb:
-                                final_thumb = os.path.join("thumbnails", f"thumb_edit_{id_}.jpg")
-                                Image.open(new_thumb).convert("RGB").thumbnail((350,500)).save(final_thumb, "JPEG", quality=95)
+                            if new_thumb is not None:  # ← SELAMAT LAGI!
+                                try:
+                                    final_thumb = os.path.join("thumbnails", f"thumb_edit_{id_}.jpg")
+                                    img = Image.open(new_thumb).convert("RGB")
+                                    img.thumbnail((350,500))
+                                    img.save(final_thumb, "JPEG", quality=95)
+                                except Exception as e:
+                                    st.warning(f"Thumbnail gagal diganti: {e}")
 
                             conn = sqlite3.connect(DB_NAME)
                             conn.execute("""UPDATE documents 
@@ -309,11 +306,11 @@ else:  # Admin Panel
                                 conn.execute("DELETE FROM documents WHERE id=?", (id_,))
                                 conn.commit()
                                 conn.close()
-                                st.success("Standard dipadam!")
+                                st.success("Dipadam!")
                                 st.rerun()
                             else:
                                 st.session_state[f"confirm{id_}"] = True
-                                st.warning("Klik sekali lagi untuk sahkan padam")
+                                st.warning("Klik sekali lagi untuk sahkan")
 
     if st.button("Log Keluar"):
         st.session_state.admin_logged_in = False
