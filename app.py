@@ -102,7 +102,7 @@ def get_docs():
 # SIDEBAR
 # =============================================
 with st.sidebar:
-    st.image("https://e7.pngegg.com/pngimages/985/662/png-clipart-fruits-veggies-more-matters-vegetable-healthy-diet-vegetable-fruits-amp.png", width=80)
+    st.image("https://e7.pngegg.com/pngimages/680/777/png-clipart-fruits-and-veggies-vegetable-eating-food-vegetable-natural-foods-food.png", width=80)
     st.markdown("<h3 style='color:white;text-align:center;margin-top:10px;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
     page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
 
