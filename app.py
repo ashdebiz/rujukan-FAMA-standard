@@ -63,64 +63,68 @@ DEFAULT_ADMINS = {
 # =============================================
 @st.cache_resource
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    conn.executescript('''
-        CREATE TABLE IF NOT EXISTS documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            category TEXT DEFAULT 'Lain-lain',
-            file_name TEXT,
-            file_path TEXT,
-            thumbnail_path TEXT,
-            upload_date TEXT NOT NULL,
-            uploaded_by TEXT
-        );
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        conn.executescript('''
+            CREATE TABLE IF NOT EXISTS documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                category TEXT DEFAULT 'Lain-lain',
+                file_name TEXT,
+                file_path TEXT,
+                thumbnail_path TEXT,
+                upload_date TEXT NOT NULL,
+                uploaded_by TEXT
+            );
 
-        CREATE TABLE IF NOT EXISTS admins (
-            username TEXT PRIMARY KEY,
-            password_hash TEXT NOT NULL,
-            full_name TEXT,
-            created_at TEXT
-        );
+            CREATE TABLE IF NOT EXISTS admins (
+                username TEXT PRIMARY KEY,
+                password_hash TEXT NOT NULL,
+                full_name TEXT,
+                created_at TEXT
+            );
 
-        CREATE TABLE IF NOT EXISTS activity_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT,
-            action TEXT,
-            details TEXT,
-            timestamp TEXT
-        );
+            CREATE TABLE IF NOT EXISTS activity_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT,
+                action TEXT,
+                details TEXT,
+                timestamp TEXT
+            );
 
-        CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
-            title, content, category, content='documents', content_rowid='id'
-        );
-    ''')
+            CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
+                title, content, category, content='documents', content_rowid='id'
+            );
+        ''')
 
-    # Cipta admin default jika tiada
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM admins")
-    if cur.fetchone()[0] == 0:
-        for username, hash_pass in DEFAULT_ADMINS.items():
-            conn.execute("INSERT INTO admins (username, password_hash, full_name, created_at) VALUES (?, ?, ?, ?)",
-                        (username, hash_pass, username.capitalize(), datetime.now().isoformat()))
+        # Cipta admin default jika tiada
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM admins")
+        if cur.fetchone()[0] == 0:
+            for username, hash_pass in DEFAULT_ADMINS.items():
+                conn.execute("INSERT INTO admins (username, password_hash, full_name, created_at) VALUES (?, ?, ?, ?)",
+                            (username, hash_pass, username.capitalize(), datetime.now().isoformat()))
 
-    # Trigger FTS
-    conn.executescript('''
-        DROP TRIGGER IF EXISTS doc_ai;
-        DROP TRIGGER IF EXISTS doc_ad;
-        CREATE TRIGGER doc_ai AFTER INSERT ON documents BEGIN
-            INSERT INTO documents_fts(rowid, title, content, category)
-            VALUES (new.id, new.title, new.content, new.category);
-        END;
-        CREATE TRIGGER doc_ad AFTER DELETE ON documents BEGIN
-            INSERT INTO documents_fts(documents_fts, rowid, title, content, category)
-            VALUES ('delete', old.id, old.title, old.content, old.category);
-        END;
-    ''')
-    conn.execute("INSERT INTO documents_fts(documents_fts) VALUES('rebuild')")
-    conn.commit()
-    conn.close()
+        # Trigger FTS (drop dulu untuk elak error)
+        conn.executescript('''
+            DROP TRIGGER IF EXISTS doc_ai;
+            DROP TRIGGER IF EXISTS doc_ad;
+            CREATE TRIGGER doc_ai AFTER INSERT ON documents BEGIN
+                INSERT INTO documents_fts(rowid, title, content, category)
+                VALUES (new.id, new.title, new.content, new.category);
+            END;
+            CREATE TRIGGER doc_ad AFTER DELETE ON documents BEGIN
+                INSERT INTO documents_fts(documents_fts, rowid, title, content, category)
+                VALUES ('delete', old.id, old.title, old.content, old.category);
+            END;
+        ''')
+        conn.execute("INSERT INTO documents_fts(documents_fts) VALUES('rebuild')")
+        conn.commit()
+    except sqlite3.Error as e:
+        st.error(f"Error init DB: {e}")
+    finally:
+        conn.close()
 
 init_db()
 
@@ -227,27 +231,64 @@ def delete_document(doc_id, username):
     rebuild_fts()
 
 # =============================================
-# CARIAN
+# CARIAN (DIPERBAIKI - FIXED SQL ERROR)
 # =============================================
 def search_documents(query="", category=""):
     conn = sqlite3.connect(DB_NAME)
-    sql = "SELECT id, title, content, file_name, file_path, thumbnail_path, upload_date, category, uploaded_by FROM documents"
+    cur = conn.cursor()
+    
+    base_sql = "SELECT d.id, d.title, d.content, d.file_name, d.file_path, d.thumbnail_path, d.upload_date, d.category, d.uploaded_by FROM documents d"
     params = []
-    where = []
+    where_conditions = []
+    join_clause = ""
+    
     if query.strip():
-        sql = "SELECT d.id, d.title, d.content, d.file_name, d.file_path, d.thumbnail_path, d.upload_date, d.category, d.uploaded_by FROM documents d JOIN documents_fts f ON d.id = f.rowid"
-        where.append("documents_fts MATCH ?")
+        join_clause = "JOIN documents_fts f ON d.id = f.rowid"
+        where_conditions.append("f MATCH ?")
         params.append(query)
+    
     if category and category != "Semua":
-        where.append("d.category = ?")
+        where_conditions.append("d.category = ?")
         params.append(category)
-    if where:
-        sql += " WHERE " + " AND ".join(where)
-    sql += " ORDER BY upload_date DESC"
-    cur = conn.execute(sql, params)
-    results = cur.fetchall()
+    
+    sql = base_sql + " " + join_clause
+    if where_conditions:
+        sql += " WHERE " + " AND ".join(where_conditions)
+    sql += " ORDER BY d.upload_date DESC"
+    
+    try:
+        cur.execute(sql, params)
+        results = cur.fetchall()
+    except sqlite3.Error as e:
+        st.error(f"Error carian: {e}")
+        results = []
+    
     conn.close()
     return results
+
+# =============================================
+# BACKUP & RESTORE (Tambahan)
+# =============================================
+def backup_database():
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_file = f"fama_backup_{timestamp}.db"
+    backup_path = os.path.join(BACKUP_DIR, backup_file)
+    shutil.copy(DB_NAME, backup_path)
+    with open(backup_path, "rb") as f:
+        st.download_button("Muat Turun Backup", f.read(), backup_file, mime="application/octet-stream")
+    log_activity(st.session_state.admin_user, "backup")
+
+def restore_database(uploaded_file, username):
+    if not uploaded_file.name.endswith(".db"):
+        st.error("Fail mesti .db")
+        return
+    shutil.copy(DB_NAME, os.path.join(BACKUP_DIR, f"pre_restore_{datetime.now():%Y%m%d_%H%M%S}.db"))
+    with open(DB_NAME, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    rebuild_fts()
+    log_activity(username, "restore")
+    st.success("Database dipulihkan!")
+    st.rerun()
 
 # =============================================
 # CSS + HEADER
@@ -257,15 +298,16 @@ st.markdown(f"""
     .main {{background-color: {bg_color}; color: {text_color};}}
     .card {{background: {card_bg}; padding: 1.5rem; border-radius: 12px; border: 1px solid {border_color}; margin: 10px 0;}}
     .header {{text-align: center; padding: 2rem; background: linear-gradient(90deg, #2E7D32, #4CAF50); color: white; border-radius: 15px;}}
-    .stButton>button {{background: #4CAF50; color: white;}}
+    .stButton>button {{background: #4CAF50; color: white; border-radius: 8px;}}
     .log-entry {{background: {card_bg}; padding: 0.8rem; border-left: 4px solid #4CAF50; margin: 5px 0; border-radius: 8px;}}
+    .error {{color: #d32f2f;}}
 </style>
 """, unsafe_allow_html=True)
 
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=130)
     st.markdown("## Rujukan Standard FAMA")
-    if st.button(f"{'Moon' if theme == 'light' else 'Sun'} Ganti Tema"):
+    if st.button(f"{'🌙 Dark' if theme == 'light' else '☀️ Light'} Mode"):
         toggle_theme()
         st.rerun()
     page = st.selectbox("Menu", ["Halaman Utama", "Carian", "Admin Panel"])
@@ -385,10 +427,7 @@ else:
     with tab4:
         st.subheader("Backup Database")
         if st.button("Buat Backup Sekarang"):
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_file = f"fama_backup_{timestamp}.db"
-            backup_path = os.path.join(BACKUP_DIR, backup_file)
-            shutil.copy(DB_NAME, backup_path)
-            with open(backup_path, "rb") as f:
-                st.download_button("Muat Turun Backup", f.read(), backup_file, mime="application/octet-stream")
-            log_activity(st.session_state.admin_user, "backup")
+            backup_database()
+        restore_file = st.file_uploader("Restore dari Backup (.db)", type=["db"])
+        if st.button("Pulihkan Database") and restore_file:
+            restore_database(restore_file, st.session_state.admin_user)
