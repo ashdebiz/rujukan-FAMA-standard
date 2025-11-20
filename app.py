@@ -166,13 +166,14 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# HALAMAN KHAS: PAPAR QR CODE (BARU!)
+# HALAMAN KHAS: PAPAR QR CODE DENGAN CARIAN PINTAR!
 # =============================================
 elif page == "Papar QR Code":
     st.markdown(f'''
-    <div style="text-align:center; padding:30px; background:linear-gradient(135deg,#1B5E20,#4CAF50); border-radius:25px; margin:20px 0; box-shadow:0 15px 40px rgba(27,94,32,0.5);">
+    <div style="text-align:center; padding:30px; background:linear-gradient(135deg,#1B5E20,#4CAF50); 
+                border-radius:25px; margin:20px 0; box-shadow:0 15px 40px rgba(27,94,32,0.5);">
         <h1 style="color:white; margin:0; font-size:2.8rem;">PAPAR QR CODE STANDARD</h1>
-        <p style="color:#c8e6c9; margin:10px 0 0;">Pilih standard untuk papar QR Code besar</p>
+        <p style="color:#c8e6c9; margin:10px 0 0; font-size:1.2rem;">Taip tajuk standard untuk cari & papar QR</p>
     </div>
     ''', unsafe_allow_html=True)
 
@@ -181,35 +182,78 @@ elif page == "Papar QR Code":
         st.warning("Belum ada standard lagi. Sila tambah di Admin Panel.")
         st.stop()
 
-    # Dropdown penuh tajuk
-    options = [f"{d[1]} — {d[2]}" for d in docs]
-    selected = st.selectbox("Pilih Standard:", options, index=0, label_visibility="collapsed")
+    # === CARIAN PINTAR (SEARCH BOX) ===
+    search_query = st.text_input(
+        "", 
+        placeholder="Cari tajuk standard, buah, sayur, bunga...", 
+        label_visibility="collapsed"
+    ).strip().lower()
 
-    idx = options.index(selected)
-    doc = docs[idx]
-    id_, title, cat, fname, fpath, thumb, date, uploader = doc
+    # Filter berdasarkan carian
+    filtered_docs = [
+        d for d in docs 
+        if search_query in d[1].lower() or search_query in d[2].lower()
+    ]
 
-    # Papar QR Code besar + cantik
+    if search_query and filtered_docs:
+        # Papar senarai cadangan yang padan
+        option_titles = [f"{d[1]} — {d[2]}" for d in filtered_docs]
+        selected_title = st.selectbox("Pilih standard:", option_titles)
+
+        # Cari dokumen yang dipilih
+        selected_doc = next(d for d in filtered_docs if f"{d[1]} — {d[2]}" == selected_title)
+    elif search_query:
+        st.info("Tiada standard ditemui. Cuba taip perkataan lain.")
+        st.stop()
+    else:
+        # Jika belum cari, papar semua dalam senarai
+        option_titles = [f"{d[1]} — {d[2]}" for d in docs]
+        selected_title = st.selectbox("Pilih standard:", option_titles, index=0)
+        selected_doc = docs[option_titles.index(selected_title)]
+
+    # Ambil data
+    id_, title, cat, fname, fpath, thumb, date, uploader = selected_doc
+
+    # Papar QR Code BESAR & CANTIK
+    qr_image = generate_qr(id_)
+    qr_b64 = base64.b64encode(qr_image).decode()
+
     st.markdown(f"""
     <div class="qr-container">
         <h2 class="qr-title">{title}</h2>
         <p class="qr-cat">{cat}</p>
-        <img src="data:image/png;base64,{base64.b64encode(generate_qr(id_)).decode()}" width="380" style="border-radius:20px; box-shadow:0 15px 40px rgba(0,0,0,0.3);">
-        <p style="margin:25px 0 10px; font-size:1.2rem; color:#555;">
-            <strong>Scan QR Code ini untuk muat turun standard</strong>
-        </p>
-        <p style="color:#888; margin:5px 0;">ID: {id_} • Dimuatnaik pada {date[:10]} oleh {uploader}</p>
+        <img src="data:image/png;base64,{qr_b64}" width="400" 
+             style="border-radius:25px; box-shadow:0 20px 50px rgba(0,0,0,0.3); border:8px solid white;">
+        <div style="margin-top:30px;">
+            <p style="font-size:1.3rem; color:#333; margin:10px 0;">
+                <strong>Scan QR ini untuk muat turun standard</strong>
+            </p>
+            <p style="color:#666; margin:5px 0;">
+                ID: <strong>{id_}</strong> • Dimuatnaik: <strong>{date[:10]}</strong> oleh <strong>{uploader}</strong>
+            </p>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Butang download QR
-    st.download_button(
-        label="MUAT TURUN QR CODE (PNG)",
-        data=generate_qr(id_),
-        file_name=f"QR_FAMA_{id_}_{title.replace(' ', '_')[:30]}.png",
-        mime="image/png",
-        use_container_width=True
-    )
+    col1, col2 = st.columns([1,1])
+    with col1, col2.with_columns(2):
+        st.download_button(
+            label="MUAT TURUN QR CODE (PNG)",
+            data=qr_image,
+            file_name=f"QR_FAMA_{id_}_{title.replace(' ', '_')[:40]}.png",
+            mime="image/png",
+            use_container_width=True
+        )
+    with col2:
+        if fpath and os.path.exists(fpath):
+            with open(fpath, "rb") as f:
+                st.download_button(
+                    label="MUAT TURUN FAIL STANDARD",
+                    data=f.read(),
+                    file_name=fname,
+                    mime="application/octet-stream",
+                    use_container_width=True
+                )
 
 # =============================================
 # ADMIN PANEL (sama macam sebelum ni — 100% stabil)
