@@ -35,7 +35,7 @@ st.markdown("""
         filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
     }
     .header-title {
-        color:white;
+        color: black;
         font-size: 2.6rem;
         font-weight: 900;
         margin: 0;
