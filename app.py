@@ -73,11 +73,12 @@ init_db()
 def extract_text(file):
     if not file: return ""
     try:
-        data = file.getvalue()
-        if file.name.lower().endswith(".pdf"):
-            return " ".join(p.extract_text() or "" for p in PyPDF2.PdfReader(io.BytesIO(data)).pages)
-        elif file.name.lower().endswith(".docx"):
-            return " ".join(p.text for p in Document(io.BytesIO(data)).paragraphs)
+        data = file.getvalue() if hasattr(file, 'getvalue') else file.read()
+        file.seek(0) if hasattr(file, 'seek') else None
+        if str(file.name).lower().endswith(".pdf"):
+            return "  ".join(p.extract_text() or "" for p in PyPDF2.PdfReader(io.BytesIO(data)).pages)
+        elif str(file.name).lower().endswith(".docx"):
+            return "  ".join(p.text for p in Document(io.BytesIO(data)).paragraphs)
     except: pass
     return ""
 
@@ -99,11 +100,18 @@ def get_docs():
     return docs
 
 # =============================================
-# SIDEBAR
+# SIDEBAR — LOGO + TEKS TENGAH CANTIK
 # =============================================
 with st.sidebar:
-    st.image("https://e7.pngegg.com/pngimages/680/777/png-clipart-fruits-and-veggies-vegetable-eating-food-vegetable-natural-foods-food.png", width=80)
-    st.markdown("<h3 style='color:white;text-align:center;margin-top:10px;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align: center; padding: 20px 0;">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
+        <h3 style="color:white; margin:15px 0 0 0; font-weight: bold;">FAMA STANDARD</h3>
+        <p style="color:#c8e6c9; margin:5px 0 0 0; font-size:0.9rem;">Sistem Digital Rasmi • 2025</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
 
 # =============================================
@@ -114,7 +122,7 @@ if page == "Halaman Utama":
     <div class="header-container">
         <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" class="fama-logo">
         <h1 class="header-title">RUJUKAN STANDARD FAMA</h1>
-        <p class="header-subtitle">Bahagian Regulasi Pasaran</p>
+        <p class="header-subtitle">Sistem Digital Rasmi • Jabatan Pertanian Malaysia</p>
     </div>
     ''', unsafe_allow_html=True)
     
@@ -144,7 +152,7 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — BOLEH KEMASKINI ATTACHMENT!
+# ADMIN PANEL — LENGKAP + KEMASKINI ATTACHMENT
 # =============================================
 else:
     if not st.session_state.get("admin"):
@@ -165,7 +173,7 @@ else:
                 st.session_state.user = user
                 st.rerun()
             else:
-                st.error("Salah!")
+                st.error("Salah username/kata laluan")
         st.stop()
 
     st.markdown(f'''
@@ -195,10 +203,8 @@ else:
 
                     thumb_path = None
                     if thumb:
-                        try:
-                            thumb_path = os.path.join("thumbnails", f"thumb_{ts}.jpg")
-                            Image.open(thumb).convert("RGB").thumbnail((350, 500)).save(thumb_path, "JPEG", quality=95)
-                        except: pass
+                        thumb_path = os.path.join("thumbnails", f"thumb_{ts}.jpg")
+                        Image.open(thumb).convert("RGB").thumbnail((350, 500)).save(thumb_path, "JPEG", quality=95)
 
                     content = extract_text(file)
                     conn = sqlite3.connect(DB_NAME)
@@ -211,8 +217,7 @@ else:
                     st.balloons()
 
     with tab2:
-        docs = get_docs()
-        for d in docs:
+        for d in get_docs():
             id_, title, cat, fname, fpath, thumb, date, uploader = d
             with st.expander(f"ID {id_} • {title} • {cat}"):
                 col1, col2 = st.columns([1, 2])
@@ -224,19 +229,14 @@ else:
                     new_title = st.text_input("Tajuk", value=title, key=f"t_{id_}")
                     new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(cat), key=f"c_{id_}")
                     new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","jpeg","png"], key=f"th_{id_}")
-                    
-                    # FUNGSI BARU: KEMASKINI ATTACHMENT
-                    new_file = st.file_uploader("Ganti Fail PDF/DOCX (Pilihan)", type=["pdf","docx"], key=f"file_{id_}")
+                    new_file = st.file_uploader("Ganti Fail PDF/DOCX", type=["pdf","docx"], key=f"file_{id_}")
 
                     c1, c2, c3 = st.columns(3)
                     with c1:
-                        if st.button("KEMASKINI SEMUA", key=f"u_{id_}"):
-                            updated = False
+                        if st.button("KEMASKINI", key=f"u_{id_}"):
                             new_fpath = fpath
                             new_fname = fname
                             new_content = None
-
-                            # Jika ada fail baru, ganti
                             if new_file:
                                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                                 ext = Path(new_file.name).suffix
@@ -245,22 +245,18 @@ else:
                                 with open(new_fpath, "wb") as f:
                                     shutil.copyfileobj(new_file, f)
                                 new_content = extract_text(new_file)
-                                updated = True
 
-                            # Ganti thumbnail jika ada
                             new_tpath = thumb
                             if new_thumb:
                                 new_tpath = os.path.join("thumbnails", f"thumb_edit_{id_}.jpg")
                                 Image.open(new_thumb).convert("RGB").thumbnail((350,500)).save(new_tpath, "JPEG", quality=95)
 
                             conn = sqlite3.connect(DB_NAME)
-                            conn.execute("""UPDATE documents 
-                                            SET title=?, category=?, file_name=?, file_path=?, thumbnail_path=?, content=?
-                                            WHERE id=?""",
-                                        (new_title, new_cat, new_fname, new_fpath, new_tpath, new_content or extract_text(open(new_fpath, "rb") if updated else None), id_))
+                            conn.execute("""UPDATE documents SET title=?, category=?, file_name=?, file_path=?, thumbnail_path=?, content=? WHERE id=?""",
+                                        (new_title, new_cat, new_fname, new_fpath, new_tpath, new_content, id_))
                             conn.commit()
                             conn.close()
-                            st.success("Semua kemaskini berjaya!")
+                            st.success("Kemaskini berjaya!")
                             st.rerun()
 
                     with c2:
@@ -275,11 +271,11 @@ else:
                                 conn.execute("DELETE FROM documents WHERE id=?", (id_,))
                                 conn.commit()
                                 conn.close()
-                                st.success("Standard dipadam!")
+                                st.success("Dipadam!")
                                 st.rerun()
                             else:
                                 st.session_state[f"confirm_{id_}"] = True
-                                st.warning("Klik sekali lagi untuk sahkan padam")
+                                st.warning("Klik sekali lagi untuk sahkan")
 
     if st.button("Log Keluar"):
         st.session_state.admin = False
