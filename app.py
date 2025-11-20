@@ -14,7 +14,7 @@ from pathlib import Path
 st.set_page_config(page_title="RUJUKAN FAMA STANDARD", page_icon="leaves", layout="centered")
 
 # Pastikan service-account.json ada di repo
-if not osraf.exists("service-account.json"):
+if not os.path.exists("service-account.json"):
     st.error("service-account.json tak jumpa! Letak di repo kau.")
     st.stop()
 
