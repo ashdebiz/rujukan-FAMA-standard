@@ -128,7 +128,7 @@ with st.sidebar:
 if page == "Halaman Utama":
     st.markdown(f'''
     <div style="position:relative; border-radius:25px; overflow:hidden; box-shadow:0 15px 40px rgba(27,94,32,0.5); margin:20px 0;">
-        <img src="https://images.unsplash.com/photo-1542838132-92c5338a0763?w=1400&h=500&fit=crop" 
+        <img src="https://w7.pngwing.com/pngs/34/259/png-transparent-fruits-and-vegetables.png?w=1400&h=500&fit=crop" 
              style="width:100%; height:300px; object-fit:cover;">
         <div style="position:absolute; top:0; left:0; width:100%; height:100%; 
                     background: linear-gradient(135deg, rgba(27,94,32,0.85), rgba(76,175,80,0.75));">
