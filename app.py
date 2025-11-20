@@ -136,7 +136,7 @@ if page == "Halaman Utama":
     # HEADER CANTIK DENGAN LOGO TENGAH
     st.markdown(f'''
     <div class="header-container">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" class="fama-logo" width="80">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width="80", class="fama-logo" >
         <h1 class="header-title">RUJUKAN STANDARD FAMA</h1>
         <p class="header-subtitle">Bahagian Regulasi Pasaran</p>
     </div>
