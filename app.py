@@ -14,7 +14,7 @@ from PIL import Image
 # =============================================
 # TEMA CANTIK FAMA
 # =============================================
-st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="tree", layout="centered")
+st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="leaf", layout="centered")
 
 st.markdown("""
 <style>
