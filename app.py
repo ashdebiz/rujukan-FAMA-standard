@@ -117,7 +117,7 @@ with st.sidebar:
     <div style="text-align: center; padding: 30px 0;">
         <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
         <h3 style="color:white; margin:15px 0 5px 0; font-weight: bold;">FAMA STANDARD</h3>
-        <p style="color:#c8e6c9; margin:0; font-size:0.95rem;">Sistem Digital Rasmi</p>
+        <p style="color:#c8e6c9; margin:0; font-size:0.95rem;">Bahagian Regulasi Pasaran</p>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
@@ -141,7 +141,7 @@ if page == "Halaman Utama":
             </h1>
             <p style="color:#e8f5e8; font-size:1.5rem; margin:20px 0 0;
                       text-shadow: 2px 2px 8px rgba(0,0,0,0.7);">
-                Sistem Digital Rasmi • Jabatan Pertanian Malaysia • 2025
+                Hasil Keluaran Pertanian
             </p>
         </div>
     </div>
