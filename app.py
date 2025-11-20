@@ -181,7 +181,7 @@ else:  # Admin Panel
     if not st.session_state.get("admin_logged_in", False):
         st.markdown(f'''
         <div style="text-align:center; padding:2rem; background:linear-gradient(135deg,#1B5E20,#4CAF50); 
-                    border-radius:25px; box-shadow:0 0 10px 25px rgba(27,94,32,0.5); margin:20px 0;">
+                    border-radius:25px; box-shadow:0 0 10px 10px rgba(27,94,32,0.5); margin:20px 0;">
             <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
             <h1 style="color:white; margin:15px 0 0;">ADMIN PANEL</h1>
             <p style="color:#c8e6c9;">Hanya untuk pegawai yang dibenarkan</p>
