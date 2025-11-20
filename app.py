@@ -111,7 +111,7 @@ with st.sidebar:
 if page == "Halaman Utama":
     st.markdown(f'''
     <div class="header-container">
-        <img src="https://images.unsplash.com/photo-1542838132-92c5338a0763?w=1200&h=600&fit=crop&crop=center&q=90" 
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSKvm2dXTYvt4qaPW6NROuESTVo-RgjoV6s6W80Cp5Jv_rrixoxkS1HEJT_dRkPtT39OjM&usqp=CAU?w=1200&h=600&fit=crop&crop=center&q=90" 
              style="width:100%; height:280px; object-fit:cover; filter: brightness(0.9);">
         <div style="position:absolute; top:0; left:0; width:100%; height:100%; 
                     background: linear-gradient(to bottom, rgba(27,94,32,0.8), rgba(76,175,80,0.7));">
