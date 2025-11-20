@@ -30,12 +30,12 @@ st.markdown("""
         margin: 20px 0;
     }
     .fama-logo {
-        width: 80px;   /* ← KECIK CANTIK MACAM KERAJAAN */
+        width: 90px;   /* ← KECIK CANTIK MACAM KERAJAAN */
         margin-bottom: 12px;
         filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
     }
     .header-title {
-        color: white;
+        color:white;
         font-size: 2.6rem;
         font-weight: 900;
         margin: 0;
@@ -123,8 +123,7 @@ def get_docs():
 # SIDEBAR (logo kecik kat sini pun)
 # =============================================
 with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
-    st.markdown("<h3 style='color:white;text-align:center;margin-top:10px;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:white;text-align:center;margin-top:12px;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
 
@@ -136,7 +135,7 @@ if page == "Halaman Utama":
     <div class="header-container">
         <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" class="fama-logo">
         <h1 class="header-title">RUJUKAN STANDARD FAMA</h1>
-        <p class="header-subtitle">Sistem Digital Rasmi • Jabatan Pertanian Malaysia • 2025</p>
+        <p class="header-subtitle">Bahagian Regulasi Pasaran</p>
     </div>
     ''', unsafe_allow_html=True)
     
