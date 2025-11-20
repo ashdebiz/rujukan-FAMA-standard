@@ -12,7 +12,7 @@ import qrcode
 from PIL import Image
 
 # =============================================
-# PAKSA LIGHT MODE + WARNA FAMA
+# PAKSA TEMA CANTIK FAMA (PUTIH + HIJAU)
 # =============================================
 st.set_page_config(
     page_title="Rujukan Standard FAMA",
@@ -21,27 +21,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# PAKSA BACKGROUND PUTIH & TEXT HITAM (tak kira browser dark mode)
+# PAKSA BACKGROUND PUTIH & HIJAU FAMA
 st.markdown("""
 <style>
-    .main {background-color: white !important; color: black !important;}
-    .stApp {background-color: white !important;}
+    .main {background: linear-gradient(135deg, #f8fff8, #e8f5e8) !important;}
+    .stApp {background: transparent !important;}
     header {visibility: hidden;}
-    .css-1d391kg {background-color: white !important;}
-    .css-1y0tugs {background-color: white !important;}
-    [data-testid="stSidebar"] {background-color: #f0f2f6;}
-    .stTextInput > div > div > input {background-color: white; color: black;}
-    .stSelectbox > div > div {background-color: white;}
+    [data-testid="stSidebar"] {background: linear-gradient(#1B5E20, #2E7D32);}
+    .css-1d391kg, .css-1y0tugs {background: transparent !important;}
+    .stTextInput > div > div > input {background: white; border: 2px solid #4CAF50; border-radius: 12px;}
+    .stSelectbox > div > div {background: white; border-radius: 12px;}
+    .card {background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #c8e6c9; margin: 15px 0;}
+    .header-box {background: linear-gradient(135deg, #1B5E20, #4CAF50); border-radius: 20px; padding: 2rem; text-align: center; color: white; box-shadow: 0 15px 35px rgba(27,94,32,0.4);}
+    .btn-green {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 50px;}
+    .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 50px; border: none;}
+    h1, h2, h3 {color: #1B5E20; font-weight: bold;}
 </style>
 """, unsafe_allow_html=True)
 
 # =============================================
 # FOLDER & DB
 # =============================================
-UPLOADS_DIR = "uploads"
-THUMBNAILS_DIR = "thumbnails"
-for d in [UPLOADS_DIR, THUMBNAILS_DIR]:
-    os.makedirs(d, exist_ok=True)
+for folder in ["uploads", "thumbnails"]:
+    os.makedirs(folder, exist_ok=True)
 
 DB_NAME = "fama_standards.db"
 CATEGORIES = ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"]
@@ -71,7 +73,6 @@ def init_db():
                 (hashlib.sha256("fama123".encode()).hexdigest(),))
     conn.commit()
     conn.close()
-
 init_db()
 
 # =============================================
@@ -82,178 +83,150 @@ def extract_text(file):
     file.seek(0)
     try:
         if file.name.lower().endswith(".pdf"):
-            reader = PyPDF2.PdfReader(io.BytesIO(data))
-            return " ".join(p.extract_text() or "" for p in reader.pages)
+            return " ".join(p.extract_text() or "" for p in PyPDF2.PdfReader(io.BytesIO(data)).pages)
         elif file.name.lower().endswith(".docx"):
-            doc = Document(io.BytesIO(data))
-            return " ".join(p.text for p in doc.paragraphs)
-    except:
-        return ""
+            return " ".join(p.text for p in Document(io.BytesIO(data)).paragraphs)
+    except: pass
     return ""
 
-def generate_qr(doc_id):
-    url = f"https://rujukan-fama-standard.streamlit.app/?doc={doc_id}"
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+def generate_qr(id_):
+    url = f"https://rujukan-fama-standard.streamlit.app/?doc={id_}"
+    qr = qrcode.QRCode(box_size=10, border=5)
     qr.add_data(url)
     qr.make(fit=True)
     img = qr.make_image(fill_color="#1B5E20", back_color="white")
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    img.save(buf, "PNG")
     return buf.getvalue()
 
-def get_documents():
+def get_all_docs():
     conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT id, title, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by FROM documents ORDER BY id DESC")
-    rows = cur.fetchall()
+    cur = conn.execute("SELECT id, title, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by FROM documents ORDER BY id DESC")
+    docs = cur.fetchall()
     conn.close()
-    return rows
+    return docs
 
 # =============================================
-# CSS CANTIK FAMA (HIJAU PUTIH)
-# =============================================
-st.markdown("""
-<style>
-    .header {
-        background: linear-gradient(90deg, #1B5E20, #4CAF50);
-        padding: 2rem;
-        border-radius: 20px;
-        text-align: center;
-        color: white;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        margin-bottom: 2rem;
-    }
-    .card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 16px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        margin: 1rem 0;
-        border: 1px solid #e0e0e0;
-    }
-    .stButton>button {
-        background: #4CAF50;
-        color: white;
-        border-radius: 12px;
-        font-weight: bold;
-        height: 3rem;
-    }
-    h1, h2, h3 {color: #1B5E20;}
-</style>
-""", unsafe_allow_html=True)
-
-# =============================================
-# SIDEBAR
+# SIDEBAR CANTIK
 # =============================================
 with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=160)
-    st.markdown("# Rujukan Standard FAMA")
-    page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"])
+    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=180)
+    st.markdown("<h2 style='color:white; text-align:center;'>FAMA STANDARD</h2>", unsafe_allow_html=True)
+    st.markdown("---")
+    page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
 
 # =============================================
-# HALAMAN UTAMA
+# HALAMAN UTAMA (SUPER INTERAKTIF!)
 # =============================================
 if page == "Halaman Utama":
-    st.markdown('<div class="header"><h1>RUJUKAN STANDARD FAMA</h1><p>Sistem Digital Rasmi • 2025</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="header-box"><h1>RUJUKAN STANDARD FAMA</h1><h3>Sistem Digital Rasmi Jabatan Pertanian Malaysia • 2025</h3></div>', unsafe_allow_html=True)
+    
+    st.markdown("### Cari Standard Anda")
+    col1, col2 = st.columns([3,1])
+    with col1:
+        search = st.text_input("", placeholder="Cari nama komoditi, tajuk standard...", key="search")
+    with col2:
+        kategori = st.selectbox("", ["Semua"] + CATEGORIES)
 
-    search = st.text_input("Cari standard...", placeholder="Contoh: tomato, ros, timun...")
-    cat = st.selectbox("Kategori", ["Semua"] + CATEGORIES)
-
-    docs = get_documents()
+    docs = get_all_docs()
     filtered = []
     for doc in docs:
-        id_, title, category, fname, fpath, thumb, date, uploader = doc
-        if (cat == "Semua" or category == cat) and (search.lower() in title.lower() or not search):
+        id_, title, cat, fname, fpath, thumb, date, uploader = doc
+        if (kategori == "Semua" or cat == kategori) and (not search or search.lower() in title.lower()):
             filtered.append(doc)
 
-    st.write(f"**Ditemui: {len(filtered)} standard**")
+    st.markdown(f"**Ditemui {len(filtered)} standard**")
 
     for doc in filtered:
         id_, title, cat, fname, fpath, thumb, date, uploader = doc
         with st.container():
             st.markdown("<div class='card'>", unsafe_allow_html=True)
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/320x450/4CAF50/white?text=FAMA+STANDARD"
+            c1, c2 = st.columns([1, 3])
+            with c1:
+                img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/350x500/4CAF50/white?text=FAMA+STANDARD"
                 st.image(img, use_column_width=True)
-            with col2:
-                st.subheader(f"**{title}**")
-                st.caption(f"**Kategori:** {cat} • **Tarikh:** {date[:10]} • **Uploader:** {uploader}")
+            with c2:
+                st.markdown(f"<h2 style='color:#1B5E20; margin:0;'>{title}</h2>", unsafe_allow_html=True)
+                st.markdown(f"**Kategori:** {cat} • **Tarikh:** {date[:10]} • **Oleh:** {uploader}")
                 if os.path.exists(fpath):
                     with open(fpath, "rb") as f:
-                        st.download_button("Muat Turun Standard", f.read(), fname, use_container_width=True)
+                        st.download_button("MUAT TURUN STANDARD", f.read(), fname, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL
+# ADMIN PANEL (MUDAH & CANTIK!)
 # =============================================
 else:
-    if not st.session_state.get("logged_in"):
-        st.markdown('<div class="header"><h1>ADMIN PANEL</h1></div>', unsafe_allow_html=True)
-        username = st.text_input("Username")
-        password = st.text_input("Kata Laluan", type="password")
-        if st.button("Log Masuk Admin"):
-            h = hashlib.sha256(password.encode()).hexdigest()
-            if (username == "admin" and h == hashlib.sha256("fama2025".encode()).hexdigest()) or \
-               (username == "pengarah" and h == hashlib.sha256("fama123".encode()).hexdigest()):
-                st.session_state.logged_in = True
-                st.session_state.username = username
+    if not st.session_state.get("admin"):
+        st.markdown('<div class="header-box"><h1>ADMIN PANEL</h1><p>Hanya untuk pegawai yang dibenarkan</p></div>', unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1: user = st.text_input("Username")
+        with col2: pw = st.text_input("Kata Laluan", type="password")
+        if st.button("LOG MASUK ADMIN", type="primary", use_container_width=True):
+            h = hashlib.sha256(pw.encode()).hexdigest()
+            if (user == "admin" and h == hashlib.sha256("fama2025".encode()).hexdigest()) or \
+               (user == "pengarah" and h == hashlib.sha256("fama123".encode()).hexdigest()):
+                st.session_state.admin = True
+                st.session_state.user = user
+                st.success("Berjaya log masuk!")
+                st.balloons()
                 st.rerun()
             else:
-                st.error("Salah username/kata laluan")
+                st.error("Username atau kata laluan salah")
         st.stop()
 
-    st.markdown(f'<div class="header"><h1>Selamat Datang, {st.session_state.username.upper()}!</h1></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="header-box"><h1>Selamat Datang, {st.session_state.user.upper()}!</h1></div>', unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["Tambah Standard", "Senarai & QR"])
+    tab1, tab2 = st.tabs(["Tambah Standard Baru", "Senarai & QR Code"])
 
     with tab1:
-        st.subheader("Tambah Standard Baru")
-        file = st.file_uploader("Fail PDF/DOCX", type=["pdf", "docx"])
-        title = st.text_input("Tajuk Standard")
-        category = st.selectbox("Kategori", CATEGORIES)
-        thumb = st.file_uploader("Gambar Thumbnail", type=["jpg","jpeg","png"])
+        st.markdown("### Tambah Standard Baru")
+        uploaded_file = st.file_uploader("Pilih fail PDF/DOCX", type=["pdf", "docx"])
+        title = st.text_input("Tajuk Standard (contoh: Standard Pembungaan Ros)")
+        category = st.selectbox("Pilih Kategori", CATEGORIES)
+        thumbnail = st.file_uploader("Gambar Thumbnail (WAJIB)", type=["jpg","jpeg","png"])
 
-        if file and title and thumb:
-            if st.button("SIMPAN STANDARD", type="primary"):
-                with st.spinner("Sedang simpan..."):
+        if uploaded_file and title and thumbnail:
+            if st.button("SIMPAN STANDARD SEKARANG", type="primary", use_container_width=True):
+                with st.spinner("Sedang memproses..."):
                     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    ext = Path(file.name).suffix
-                    new_name = f"{ts}_{Path(file.name).stem}{ext}"
-                    file_path = os.path.join(UPLOADS_DIR, new_name)
+                    ext = Path(uploaded_file.name).suffix
+                    new_name = f"{ts}_{Path(uploaded_file.name).stem}{ext}"
+                    file_path = os.path.join("uploads", new_name)
                     with open(file_path, "wb") as f:
-                        shutil.copyfileobj(file, f)
+                        shutil.copyfileobj(uploaded_file, f)
 
-                    thumb_name = f"thumb_{ts}.jpg"
-                    thumb_path = os.path.join(THUMBNAILS_DIR, thumb_name)
-                    Image.open(thumb).convert("RGB").thumbnail((320,450)).save(thumb_path, "JPEG")
+                    thumb_path = os.path.join("thumbnails", f"thumb_{ts}.jpg")
+                    Image.open(thumbnail).convert("RGB").thumbnail((350,500)).save(thumb_path, "JPEG", quality=95)
 
-                    content = extract_text(file)
+                    content = extract_text(uploaded_file)
                     conn = sqlite3.connect(DB_NAME)
                     conn.execute("""INSERT INTO documents 
                         (title, content, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (title, content, category, file.name, file_path, thumb_path,
-                         datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.username))
+                        (title, content, category, uploaded_file.name, file_path, thumb_path,
+                         datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
                     conn.commit()
+                    new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
                     conn.close()
-                    st.success("BERJAYA DISIMPAN!")
+                    st.success(f"BERJAYA! ID Standard: **{new_id}**")
                     st.balloons()
 
     with tab2:
-        for doc in get_documents():
+        for doc in get_all_docs():
             id_, title, cat, fname, fpath, thumb, date, uploader = doc
             with st.expander(f"ID {id_} • {title} • {cat}"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/320x450.png?text=FAMA"
-                    st.image(img, width=200)
-                with col2:
-                    st.write(f"**Uploader:** {uploader} • **Tarikh:** {date[:10]}")
+                c1, c2 = st.columns(2)
+                with c1:
+                    img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/300x420.png?text=FAMA"
+                    st.image(img, width=250)
+                with c2:
+                    st.write(f"**Uploader:** {uploader}")
+                    st.write(f"**Tarikh:** {date[:10]}")
                     qr = generate_qr(id_)
-                    st.image(qr, width=180)
-                    st.download_button("Muat Turun QR", qr, f"QR_{id_}.png", "image/png", key=f"qr_{id_}")
+                    st.image(qr, width=200)
+                    st.download_button("Muat Turun QR Code", qr, f"QR_{title[:20]}_{id_}.png", "image/png")
 
     if st.button("Log Keluar"):
-        st.session_state.logged_in = False
+        st.session_state.admin = False
         st.rerun()
