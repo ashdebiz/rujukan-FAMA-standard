@@ -161,7 +161,7 @@ else:
     if not st.session_state.get("admin"):
         st.markdown(f'''
         <div class="header-container">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" class="fama-logo">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="90" >
             <h1 class="header-title">ADMIN PANEL</h1>
         </div>
         ''', unsafe_allow_html=True)
