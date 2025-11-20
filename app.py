@@ -12,7 +12,7 @@ import qrcode
 from PIL import Image
 
 # =============================================
-# TEMA CANTIK FAMA
+# TEMA CANTIK FAMA + LOGO CENTERED
 # =============================================
 st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="rice", layout="centered")
 
@@ -20,7 +20,35 @@ st.markdown("""
 <style>
     .main {background: #f8fff8;}
     [data-testid="stSidebar"] {background: linear-gradient(#1B5E20, #2E7D32);}
-    .header {background: linear-gradient(135deg, #1B5E20, #4CAF50); padding: 2rem; border-radius: 20px; text-align: center; color: white; box-shadow: 0 15px 35px rgba(27,94,32,0.4);}
+    
+    /* HEADER DENGAN LOGO TENGAH + TAJUK BAWAH */
+    .header-container {
+        text-align: center;
+        padding: 2rem 0;
+        background: linear-gradient(135deg, #1B5E20, #4CAF50);
+        border-radius: 25px;
+        box-shadow: 0 15px 40px rgba(27,94,32,0.5);
+        margin: 20px 0;
+    }
+    .fama-logo {
+        width: 180px;
+        margin-bottom: 15px;
+        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    }
+    .header-title {
+        color: white;
+        font-size: 2.8rem;
+        font-weight: 900;
+        margin: 0;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.4);
+    }
+    .header-subtitle {
+        color: #c8e6c9;
+        font-size: 1.3rem;
+        margin: 8px 0 0;
+        font-weight: 500;
+    }
+    
     .card {background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #c8e6c9; margin: 15px 0;}
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 50px; border: none;}
     .btn-delete>button {background: #d32f2f !important;}
@@ -97,16 +125,23 @@ def get_docs():
 # SIDEBAR
 # =============================================
 with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
+    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=160)
     st.markdown("<h2 style='color:white;text-align:center;'>FAMA STANDARD</h2>", unsafe_allow_html=True)
+    st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
 
 # =============================================
-# HALAMAN UTAMA
+# HALAMAN UTAMA — LOGO + TAJUK CENTERED!
 # =============================================
 if page == "Halaman Utama":
-    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
-    st.markdown('<div class="header"><h1>RUJUKAN FAMA STANDARD</h1><h3>Regulasi Pasaran</h3></div>', unsafe_allow_html=True)
+    # HEADER CANTIK DENGAN LOGO TENGAH
+    st.markdown(f'''
+    <div class="header-container">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" class="fama-logo">
+        <h1 class="header-title">RUJUKAN STANDARD FAMA</h1>
+        <p class="header-subtitle">Sistem Digital Rasmi Jabatan Pertanian Malaysia • 2025</p>
+    </div>
+    ''', unsafe_allow_html=True)
     
     col1, col2 = st.columns([3,1])
     with col1: cari = st.text_input("", placeholder="Cari tajuk standard...")
@@ -134,11 +169,18 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — ADA EDIT + PADAM!
+# ADMIN PANEL — SAMA CANTIK + EDIT + PADAM
 # =============================================
 else:
     if not st.session_state.get("admin"):
-        st.markdown('<div class="header"><h1>ADMIN PANEL</h1></div>', unsafe_allow_html=True)
+        st.markdown(f'''
+        <div class="header-container">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" class="fama-logo">
+            <h1 class="header-title">ADMIN PANEL</h1>
+            <p class="header-subtitle">Hanya untuk pegawai yang dibenarkan</p>
+        </div>
+        ''', unsafe_allow_html=True)
+        
         c1, c2 = st.columns(2)
         with c1: user = st.text_input("Username")
         with c2: pw = st.text_input("Kata Laluan", type="password")
@@ -153,7 +195,11 @@ else:
                 st.error("Salah username/kata laluan")
         st.stop()
 
-    st.markdown(f'<div class="header"><h1>Selamat Datang, {st.session_state.user.upper()}!</h1></div>', unsafe_allow_html=True)
+    st.markdown(f'''
+    <div class="header-container">
+        <h1 class="header-title">Selamat Datang, {st.session_state.user.upper()}!</h1>
+    </div>
+    ''', unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["Tambah Standard", "Senarai & Pengurusan"])
 
@@ -178,76 +224,61 @@ else:
                     if thumb:
                         try:
                             thumb_path = os.path.join("thumbnails", f"thumb_{ts}.jpg")
-                            img = Image.open(thumb).convert("RGB")
-                            img.thumbnail((350, 500))
-                            img.save(thumb_path, "JPEG", quality=95)
+                            Image.open(thumb).convert("RGB").thumbnail((350, 500)).save(thumb_path, "JPEG", quality=95)
                         except: pass
 
                     content = extract_text(file)
                     conn = sqlite3.connect(DB_NAME)
-                    conn.execute("""INSERT INTO documents 
-                        (title, content, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    conn.execute("""INSERT INTO documents VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (title, content, cat, file.name, file_path, thumb_path,
                          datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
                     conn.commit()
-                    new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
                     conn.close()
-                    st.success(f"BERJAYA! ID: **{new_id}**")
+                    st.success("BERJAYA DISIMPAN!")
                     st.balloons()
 
     with tab2:
-        docs = get_docs()
-        for d in docs:
+        for d in get_docs():
             id_, title, cat, fname, fpath, thumb, date, uploader = d
-            
-            with st.expander(f"ID {id_} • {title} • {cat}", expanded=False):
+            with st.expander(f"ID {id_} • {title} • {cat}"):
                 col1, col2 = st.columns([1, 2])
                 with col1:
                     img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/300x420.png?text=FAMA"
                     st.image(img, width=250)
-                
                 with col2:
-                    new_title = st.text_input("Tajuk", value=title, key=f"title_{id_}")
-                    new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(cat) if cat in CATEGORIES else 0, key=f"cat_{id_}")
-                    new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","jpeg","png"], key=f"thumb_{id_}")
+                    new_title = st.text_input("Tajuk", value=title, key=f"t_{id_}")
+                    new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(cat), key=f"c_{id_}")
+                    new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","jpeg","png"], key=f"th_{id_}")
 
-                    col_a, col_b, col_c = st.columns(3)
-                    with col_a:
-                        if st.button("KEMASKINI", key=f"update_{id_}"):
-                            thumb_path = thumb
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        if st.button("KEMASKINI", key=f"u_{id_}"):
+                            tpath = thumb
                             if new_thumb:
-                                try:
-                                    thumb_path = os.path.join("thumbnails", f"thumb_edit_{id_}.jpg")
-                                    Image.open(new_thumb).convert("RGB").thumbnail((350,500)).save(thumb_path, "JPEG", quality=95)
-                                except: pass
+                                tpath = os.path.join("thumbnails", f"thumb_edit_{id_}.jpg")
+                                Image.open(new_thumb).convert("RGB").thumbnail((350,500)).save(tpath, "JPEG", quality=95)
                             conn = sqlite3.connect(DB_NAME)
-                            conn.execute("UPDATE documents SET title=?, category=?, thumbnail_path=? WHERE id=?", 
-                                        (new_title, new_cat, thumb_path, id_))
+                            conn.execute("UPDATE documents SET title=?, category=?, thumbnail_path=? WHERE id=?", (new_title, new_cat, tpath, id_))
                             conn.commit()
                             conn.close()
-                            st.success("Berjaya dikemaskini!")
+                            st.success("Kemaskini berjaya!")
                             st.rerun()
-
-                    with col_b:
+                    with c2:
                         st.download_button("QR Code", generate_qr(id_), f"QR_{id_}.png", "image/png", key=f"qr_{id_}")
-
-                    with col_c:
-                        if st.button("PADAM", key=f"del_{id_}", help="Padam standard ini"):
+                    with c3:
+                        if st.button("PADAM", key=f"d_{id_}"):
                             if st.session_state.get(f"confirm_{id_}"):
-                                # Padam fail & thumbnail
                                 if os.path.exists(fpath): os.remove(fpath)
                                 if thumb and os.path.exists(thumb): os.remove(thumb)
                                 conn = sqlite3.connect(DB_NAME)
                                 conn.execute("DELETE FROM documents WHERE id=?", (id_,))
                                 conn.commit()
                                 conn.close()
-                                st.success("Standard dipadam!")
+                                st.success("Dipadam!")
                                 st.rerun()
                             else:
                                 st.session_state[f"confirm_{id_}"] = True
-                                st.warning("Klik sekali lagi untuk sahkan padam")
-                                st.rerun()
+                                st.warning("Klik sekali lagi untuk padam")
 
     if st.button("Log Keluar"):
         st.session_state.admin = False
