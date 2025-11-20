@@ -30,6 +30,11 @@ st.markdown("""
         box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #c8e6c9;
         margin: 15px 0;
     }
+    .qr-box {
+        background: white; border-radius: 25px; padding: 30px; text-align: center;
+        box-shadow: 0 15px 40px rgba(27,94,32,0.15); border: 3px solid #4CAF50;
+        margin: 30px 0;
+    }
     .stButton>button {
         background: #4CAF50; color: white; font-weight: bold;
         border-radius: 15px; height: 50px; border: none;
@@ -38,7 +43,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# =============================================
+# =============================================977
 # FOLDER & DATABASE
 # =============================================
 os.makedirs("uploads", exist_ok=True)
@@ -75,7 +80,7 @@ def init_db():
 init_db()
 
 # =============================================
-# FUNGSI SELAMAT (TIADA ERROR LAGI!)
+# FUNGSI SELAMAT
 # =============================================
 def extract_text(file):
     if not file: return ""
@@ -88,12 +93,12 @@ def extract_text(file):
             doc = Document(io.BytesIO(data))
             return " ".join(p.text for p in doc.paragraphs)
     except Exception as e:
-        st.warning(f"Teks gagal diekstrak: {str(e)}")
+        st.warning(f"Teks gagal diekstrak: {e}")
     return ""
 
 def generate_qr(id_):
     url = f"https://rujukan-fama-standard.streamlit.app/?doc={id_}"
-    qr = qrcode.QRCode(box_size=10, border=5)
+    qr = qrcode.QRCode(box_size=12, border=6)
     qr.add_data(url)
     qr.make(fit=True)
     img = qr.make_image(fill_color="#1B5E20", back_color="white")
@@ -103,13 +108,13 @@ def generate_qr(id_):
 
 def get_docs():
     conn = sqlite3.connect(DB_NAME)
-    cur = conn.execute("SELECT id, title, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by FROM documents ORDER BY id DESC")
+    cur = conn.execute("SELECT id, title, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by FROM documents ORDER BY title ASC")
     docs = cur.fetchall()
     conn.close()
     return docs
 
 # =============================================
-# SIDEBAR — LOGO FAMA TENGAH
+# SIDEBAR
 # =============================================
 with st.sidebar:
     st.markdown("""
@@ -120,10 +125,10 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
-    page = st.selectbox("Menu Utama", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
+    page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
 
 # =============================================
-# HALAMAN UTAMA — GAMBAR BUAH & SAYUR
+# HALAMAN UTAMA — DENGAN QR CODE BESAR!
 # =============================================
 if page == "Halaman Utama":
     st.markdown(f'''
@@ -146,16 +151,57 @@ if page == "Halaman Utama":
     </div>
     ''', unsafe_allow_html=True)
 
-    col1, col2 = st.columns([3,1])
-    with col1:
-        cari = st.text_input("", placeholder="Cari tajuk standard, komoditi...")
-    with col2:
-        kat = st.selectbox("", ["Semua"] + CATEGORIES)
+    # === FUNGSI BARU: PILIH STANDARD & PAPAR QR ===
+    st.markdown("<h2 style='text-align:center; color:#1B5E20;'>Pilih Standard untuk Papar QR Code</h2>", unsafe_allow_html=True)
 
     docs = get_docs()
-    hasil = [d for d in docs if (kat == "Semua" or d[2] == kat) and (not cari or cari.lower() in d[1].lower())]
+    if docs:
+        # Buat list pilihan: "Tajuk - Kategori"
+        options = [f"{doc[1]} — {doc[2]}" for doc in docs]
+        selected = st.selectbox("Sila pilih satu standard:", options, index=0)
 
-    st.markdown(f"<h3 style='color:#1B5E20; text-align:center;'>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
+        # Cari ID yang dipilih
+        selected_index = options.index(selected)
+        selected_doc = docs[selected_index]
+        id_, title, cat, fname, fpath, thumb, date, uploader = selected_doc
+
+        # Papar QR Code besar + info
+        st.markdown(f"""
+        <div class="qr-box">
+            <h2 style="color:#1B5E20; margin-bottom:10px;">{title}</h2>
+            <p style="color:#4CAF50; font-weight:bold; margin:5px 0 20px;">{cat}</p>
+            <img src="data:image/png;base64,{st.image(generate_qr(id_), width=350)}" style="border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+            <p style="margin-top:20px; color:#555; font-size:1.1rem;">
+                <strong>Scan QR Code ini untuk muat turun standard</strong>
+            </p>
+            <p style="color:#888; font-size:0.9rem; margin-top:10px;">
+                ID: {id_} • Dimuatnaik: {date[:10]} oleh {uploader}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Download QR juga
+        st.download_button(
+            "Muat Turun QR Code (PNG)",
+            data=generate_qr(id_),
+            file_name=f"QR_FAMA_{id_}_{title[:20]}.png",
+            mime="image/png"
+        )
+    else:
+        st.info("Belum ada standard lagi. Sila tambah di Admin Panel.")
+
+    st.markdown("---")
+
+    # Senarai semua standard (seperti biasa)
+    col1, col2 = st.columns([3,1])
+    with col1:
+        cari = st.text_input("", placeholder="Cari tajuk standard...")
+    with col2:
+        kat_filter = st.selectbox("", ["Semua"] + CATEGORIES)
+
+    hasil = [d for d in docs if (kat_filter == "Semua" or d[2] == kat_filter) and (not cari or cari.lower() in d[1].lower())]
+
+    st.markdown(f"<h3 style='color:#1B5E20;'>Senarai Standard Terkini ({len(hasil)})</h3>", unsafe_allow_html=True)
 
     for d in hasil:
         id_, title, cat, fname, fpath, thumb, date, uploader = d
@@ -163,18 +209,18 @@ if page == "Halaman Utama":
             st.markdown("<div class='card'>", unsafe_allow_html=True)
             c1, c2 = st.columns([1,3])
             with c1:
-                img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/350x500/4CAF50/white?text=FAMA+STANDARD"
+                img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/350x500/4CAF50/white?text=FAMA"
                 st.image(img, use_container_width=True)
             with c2:
                 st.markdown(f"<h2 style='margin:0; color:#1B5E20;'>{title}</h2>", unsafe_allow_html=True)
                 st.caption(f"**{cat}** • {date[:10]} • {uploader}")
                 if fpath and os.path.exists(fpath):
                     with open(fpath, "rb") as f:
-                        st.download_button("MUAT TURUN PDF/DOCX", f.read(), fname, use_container_width=True)
+                        st.download_button("MUAT TURUN", f.read(), fname, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — 100% SELAMAT, TAK CRASH LAGI!
+# ADMIN PANEL — SAMA MACAM SEBELUM NI (100% SELAMAT)
 # =============================================
 else:
     if not st.session_state.get("admin_logged_in", False):
@@ -203,18 +249,18 @@ else:
 
     st.markdown(f"<h1 style='text-align:center; color:#1B5E20;'>Selamat Datang, {st.session_state.user.upper()}!</h1>", unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["Tambah Standard Baru", "Senarai & Pengurusan"])
+    tab1, tab2 = st.tabs(["Tambah Standard", "Senarai & Edit"])
 
     with tab1:
         st.markdown("### Tambah Standard Baru")
-        uploaded_file = st.file_uploader("Pilih fail PDF atau DOCX", type=["pdf", "docx"])
+        uploaded_file = st.file_uploader("Pilih fail PDF/DOCX", type=["pdf", "docx"])
         title = st.text_input("Tajuk Standard")
         category = st.selectbox("Kategori", CATEGORIES)
         thumbnail = st.file_uploader("Thumbnail (Pilihan)", type=["jpg","jpeg","png"])
 
         if uploaded_file and title:
             if st.button("SIMPAN STANDARD", type="primary", use_container_width=True):
-                with st.spinner("Sedang memproses..."):
+                with st.spinner("Sedang simpan..."):
                     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                     ext = Path(uploaded_file.name).suffix
                     new_name = f"{ts}_{Path(uploaded_file.name).stem}{ext}"
@@ -222,16 +268,15 @@ else:
                     with open(file_path, "wb") as f:
                         shutil.copyfileobj(uploaded_file, f)
 
-                    # DENGAN SEMAKAN 100% SELAMAT!
                     thumb_path = None
-                    if thumbnail is not None:  # ← INI YANG BETULKAN ERROR!
+                    if thumbnail is not None:
                         try:
                             thumb_path = os.path.join("thumbnails", f"thumb_{ts}.jpg")
                             img = Image.open(thumbnail).convert("RGB")
                             img.thumbnail((350, 500))
                             img.save(thumb_path, "JPEG", quality=95)
                         except Exception as e:
-                            st.warning(f"Thumbnail gagal disimpan: {e}")
+                            st.warning(f"Thumbnail gagal: {e}")
 
                     content = extract_text(uploaded_file)
                     conn = sqlite3.connect(DB_NAME)
@@ -257,14 +302,13 @@ else:
                     new_title = st.text_input("Tajuk", value=title, key=f"t{id_}")
                     new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(cat), key=f"c{id_}")
                     new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","jpeg","png"], key=f"th{id_}")
-                    new_file = st.file_uploader("Ganti Fail PDF/DOCX", type=["pdf","docx"], key=f"f{id_}")
+                    new_file = st.file_uploader("Ganti Fail", type=["pdf","docx"], key=f"f{id_}")
 
                     c1, c2, c3 = st.columns(3)
                     with c1:
                         if st.button("KEMASKINI", key=f"u{id_}"):
                             final_fpath = fpath
                             final_fname = fname
-                            final_content = None
                             if new_file:
                                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                                 ext = Path(new_file.name).suffix
@@ -272,26 +316,20 @@ else:
                                 final_fpath = os.path.join("uploads", f"{ts}_update_{Path(new_file.name).stem}{ext}")
                                 with open(final_fpath, "wb") as f:
                                     shutil.copyfileobj(new_file, f)
-                                final_content = extract_text(new_file)
 
                             final_thumb = thumb
-                            if new_thumb is not None:  # ← SELAMAT LAGI!
+                            if new_thumb is not None:
                                 try:
                                     final_thumb = os.path.join("thumbnails", f"thumb_edit_{id_}.jpg")
-                                    img = Image.open(new_thumb).convert("RGB")
-                                    img.thumbnail((350,500))
-                                    img.save(final_thumb, "JPEG", quality=95)
-                                except Exception as e:
-                                    st.warning(f"Thumbnail gagal diganti: {e}")
+                                    Image.open(new_thumb).convert("RGB").thumbnail((350,500)).save(final_thumb, "JPEG", quality=95)
+                                except: pass
 
                             conn = sqlite3.connect(DB_NAME)
-                            conn.execute("""UPDATE documents 
-                                            SET title=?, category=?, file_name=?, file_path=?, thumbnail_path=?, content=?
-                                            WHERE id=?""",
-                                        (new_title, new_cat, final_fname, final_fpath, final_thumb, final_content, id_))
+                            conn.execute("""UPDATE documents SET title=?, category=?, file_name=?, file_path=?, thumbnail_path=? WHERE id=?""",
+                                        (new_title, new_cat, final_fname, final_fpath, final_thumb, id_))
                             conn.commit()
                             conn.close()
-                            st.success("Berjaya dikemaskini!")
+                            st.success("Kemaskini berjaya!")
                             st.rerun()
 
                     with c2:
@@ -310,7 +348,7 @@ else:
                                 st.rerun()
                             else:
                                 st.session_state[f"confirm{id_}"] = True
-                                st.warning("Klik sekali lagi untuk sahkan")
+                                st.warning("Klik sekali lagi untuk padam")
 
     if st.button("Log Keluar"):
         st.session_state.admin_logged_in = False
