@@ -12,7 +12,7 @@ import qrcode
 from PIL import Image
 
 # =============================================
-# TEMA CANTIK FAMA + LOGO CENTERED
+# TEMA CANTIK FAMA + LOGO KECIK TENGAH
 # =============================================
 st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="rice", layout="centered")
 
@@ -21,7 +21,6 @@ st.markdown("""
     .main {background: #f8fff8;}
     [data-testid="stSidebar"] {background: linear-gradient(#1B5E20, #2E7D32);}
     
-    /* HEADER DENGAN LOGO TENGAH + TAJUK BAWAH */
     .header-container {
         text-align: center;
         padding: 2rem 0;
@@ -31,27 +30,26 @@ st.markdown("""
         margin: 20px 0;
     }
     .fama-logo {
-        width: 180px;
-        margin-bottom: 15px;
-        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+        width: 80px;   /* ← KECIK CANTIK MACAM KERAJAAN */
+        margin-bottom: 12px;
+        filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
     }
     .header-title {
         color: white;
-        font-size: 2.8rem;
+        font-size: 2.6rem;
         font-weight: 900;
         margin: 0;
-        text-shadow: 2px 2px 8px rgba(0,0,0,0.4);
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
     }
     .header-subtitle {
         color: #c8e6c9;
-        font-size: 1.3rem;
+        font-size: 1.2rem;
         margin: 8px 0 0;
         font-weight: 500;
     }
     
     .card {background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #c8e6c9; margin: 15px 0;}
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 50px; border: none;}
-    .btn-delete>button {background: #d32f2f !important;}
     h1,h2,h3 {color: #1B5E20;}
 </style>
 """, unsafe_allow_html=True)
@@ -63,7 +61,7 @@ os.makedirs("uploads", exist_ok=True)
 os.makedirs("thumbnails", exist_ok=True)
 
 DB_NAME = "fama_standards.db"
-CATEGORIES = ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"]
+CATEGORIES = ["Keratan Bunga", "Sayur-sayaran", "Buah-buahan", "Lain-lain"]
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -122,23 +120,23 @@ def get_docs():
     return docs
 
 # =============================================
-# SIDEBAR
+# SIDEBAR (logo kecik kat sini pun)
 # =============================================
 with st.sidebar:
-    st.markdown("<h2 style='color:white;text-align:center;'>FAMA STANDARD</h2>", unsafe_allow_html=True)
+    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
+    st.markdown("<h3 style='color:white;text-align:center;margin-top:10px;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
 
 # =============================================
-# HALAMAN UTAMA — LOGO + TAJUK CENTERED!
+# HALAMAN UTAMA — LOGO KECIK TENGAH ATAS
 # =============================================
 if page == "Halaman Utama":
-    # HEADER CANTIK DENGAN LOGO TENGAH
     st.markdown(f'''
     <div class="header-container">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80, class="fama-logo" >
+        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" class="fama-logo">
         <h1 class="header-title">RUJUKAN STANDARD FAMA</h1>
-        <p class="header-subtitle">Bahagian Regulasi Pasaran</p>
+        <p class="header-subtitle">Sistem Digital Rasmi • Jabatan Pertanian Malaysia • 2025</p>
     </div>
     ''', unsafe_allow_html=True)
     
@@ -168,7 +166,7 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — SAMA CANTIK + EDIT + PADAM
+# ADMIN PANEL — SAMA CANTIK
 # =============================================
 else:
     if not st.session_state.get("admin"):
@@ -176,7 +174,7 @@ else:
         <div class="header-container">
             <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" class="fama-logo">
             <h1 class="header-title">ADMIN PANEL</h1>
-            <p class="header-subtitle">Hanya untuk pegawai yang dibenarkan</p>
+            <p class="header-subtitle">Log Masuk Pegawai Sahaja</p>
         </div>
         ''', unsafe_allow_html=True)
         
@@ -228,7 +226,7 @@ else:
 
                     content = extract_text(file)
                     conn = sqlite3.connect(DB_NAME)
-                    conn.execute("""INSERT INTO documents VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    conn.execute("INSERT INTO documents VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (title, content, cat, file.name, file_path, thumb_path,
                          datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
                     conn.commit()
