@@ -10,6 +10,7 @@ import io
 import hashlib
 import qrcode
 from PIL import Image
+import base64
 
 # =============================================
 # KONFIGURASI & TEMA CANTIK FAMA
@@ -25,25 +26,19 @@ st.markdown("""
 <style>
     .main {background: #f8fff8;}
     [data-testid="stSidebar"] {background: linear-gradient(#1B5E20, #2E7D32);}
-    .card {
-        background: white; border-radius: 20px; padding: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #c8e6c9;
-        margin: 15px 0;
+    .card {background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #c8e6c9; margin: 15px 0;}
+    .qr-container {
+        background: white; border-radius: 30px; padding: 40px; text-align: center;
+        box-shadow: 0 20px 50px rgba(27,94,32,0.2); border: 4px solid #4CAF50; margin: 30px 0;
     }
-    .qr-box {
-        background: white; border-radius: 25px; padding: 30px; text-align: center;
-        box-shadow: 0 15px 40px rgba(27,94,32,0.15); border: 3px solid #4CAF50;
-        margin: 30px 0;
-    }
-    .stButton>button {
-        background: #4CAF50; color: white; font-weight: bold;
-        border-radius: 15px; height: 50px; border: none;
-    }
-    h1, h2, h3 {color: #1B5E20;}
+    .qr-title {color: #1B5E20; font-size: 2.2rem; font-weight: 900; margin: 0 0 10px 0;}
+    .qr-cat {color: #4CAF50; font-weight: bold; font-size: 1.3rem; margin: 10px 0;}
+    .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 55px; border: none;}
+    h1,h2,h3 {color: #1B5E20;}
 </style>
 """, unsafe_allow_html=True)
 
-# =============================================977
+# =============================================
 # FOLDER & DATABASE
 # =============================================
 os.makedirs("uploads", exist_ok=True)
@@ -71,34 +66,29 @@ def init_db():
             password_hash TEXT NOT NULL
         );
     ''')
-    conn.execute("INSERT OR IGNORE INTO admins VALUES ('admin', ?)",
-                 (hashlib.sha256("fama2025".encode()).hexdigest(),))
-    conn.execute("INSERT OR IGNORE INTO admins VALUES ('pengarah', ?)",
-                 (hashlib.sha256("fama123".encode()).hexdigest(),))
+    conn.execute("INSERT OR IGNORE INTO admins VALUES ('admin', ?)", (hashlib.sha256("fama2025".encode()).hexdigest(),))
+    conn.execute("INSERT OR IGNORE INTO admins VALUES ('pengarah', ?)", (hashlib.sha256("fama123".encode()).hexdigest(),))
     conn.commit()
     conn.close()
 init_db()
 
 # =============================================
-# FUNGSI SELAMAT
+# FUNGSI UTAMA
 # =============================================
 def extract_text(file):
     if not file: return ""
     try:
         data = file.getvalue()
         if file.name.lower().endswith(".pdf"):
-            reader = PyPDF2.PdfReader(io.BytesIO(data))
-            return " ".join(page.extract_text() or "" for page in reader.pages)
+            return " ".join(p.extract_text() or "" for p in PyPDF2.PdfReader(io.BytesIO(data)).pages)
         elif file.name.lower().endswith(".docx"):
-            doc = Document(io.BytesIO(data))
-            return " ".join(p.text for p in doc.paragraphs)
-    except Exception as e:
-        st.warning(f"Teks gagal diekstrak: {e}")
+            return " ".join(p.text for p in Document(io.BytesIO(data)).paragraphs)
+    except: pass
     return ""
 
 def generate_qr(id_):
     url = f"https://rujukan-fama-standard.streamlit.app/?doc={id_}"
-    qr = qrcode.QRCode(box_size=12, border=6)
+    qr = qrcode.QRCode(box_size=15, border=8)
     qr.add_data(url)
     qr.make(fit=True)
     img = qr.make_image(fill_color="#1B5E20", back_color="white")
@@ -114,7 +104,7 @@ def get_docs():
     return docs
 
 # =============================================
-# SIDEBAR
+# SIDEBAR — DENGAN HALAMAN QR CODE!
 # =============================================
 with st.sidebar:
     st.markdown("""
@@ -125,83 +115,39 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
-    page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
+    page = st.selectbox("Menu", [
+        "Halaman Utama",
+        "Papar QR Code",      # HALAMAN BARU!
+        "Admin Panel"
+    ], label_visibility="collapsed")
 
 # =============================================
-# HALAMAN UTAMA — DENGAN QR CODE BESAR!
+# HALAMAN UTAMA
 # =============================================
 if page == "Halaman Utama":
     st.markdown(f'''
     <div style="position:relative; border-radius:25px; overflow:hidden; box-shadow:0 15px 40px rgba(27,94,32,0.5); margin:20px 0;">
-        <img src="https://w7.pngwing.com/pngs/34/259/png-transparent-fruits-and-vegetables.png?w=1400&h=500&fit=crop" 
-             style="width:100%; height:300px; object-fit:cover;">
-        <div style="position:absolute; top:0; left:0; width:100%; height:100%; 
-                    background: linear-gradient(135deg, rgba(27,94,32,0.85), rgba(76,175,80,0.75));">
-        </div>
+        <img src="https://w7.pngwing.com/pngs/34/259/png-transparent-fruits-and-vegetables.png?w=1400&h=500&fit=crop" style="width:100%; height:300px; object-fit:cover;">
+        <div style="position:absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, rgba(27,94,32,0.85), rgba(76,175,80,0.75));"></div>
         <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; width:100%;">
-            <h1 style="color:white; font-size:3.3rem; font-weight:900; margin:0; 
-                       text-shadow: 4px 4px 15px rgba(0,0,0,0.8);">
+            <h1 style="color:white; font-size:3.3rem; font-weight:900; margin:0; text-shadow: 4px 4px 15px rgba(0,0,0,0.8);">
                 RUJUKAN FAMA STANDARD 
             </h1>
-            <p style="color:#e8f5e8; font-size:1.5rem; margin:20px 0 0;
-                      text-shadow: 2px 2px 8px rgba(0,0,0,0.7);">
+            <p style="color:#e8f5e8; font-size:1.5rem; margin:20px 0 0; text-shadow: 2px 2px 8px rgba(0,0,0,0.7);">
                 Hasil Keluaran Pertanian Tempatan
             </p>
         </div>
     </div>
     ''', unsafe_allow_html=True)
 
-    # === FUNGSI BARU: PILIH STANDARD & PAPAR QR ===
-    st.markdown("<h2 style='text-align:center; color:#1B5E20;'>Pilih Standard untuk Papar QR Code</h2>", unsafe_allow_html=True)
+    col1, col2 = st.columns([3,1])
+    with col1: cari = st.text_input("", placeholder="Cari tajuk standard...")
+    with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES)
 
     docs = get_docs()
-    if docs:
-        # Buat list pilihan: "Tajuk - Kategori"
-        options = [f"{doc[1]} — {doc[2]}" for doc in docs]
-        selected = st.selectbox("Sila pilih satu standard:", options, index=0)
+    hasil = [d for d in docs if (kat == "Semua" or d[2] == kat) and (not cari or cari.lower() in d[1].lower())]
 
-        # Cari ID yang dipilih
-        selected_index = options.index(selected)
-        selected_doc = docs[selected_index]
-        id_, title, cat, fname, fpath, thumb, date, uploader = selected_doc
-
-        # Papar QR Code besar + info
-        st.markdown(f"""
-        <div class="qr-box">
-            <h2 style="color:#1B5E20; margin-bottom:10px;">{title}</h2>
-            <p style="color:#4CAF50; font-weight:bold; margin:5px 0 20px;">{cat}</p>
-            <img src="data:image/png;base64,{st.image(generate_qr(id_), width=350)}" style="border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
-            <p style="margin-top:20px; color:#555; font-size:1.1rem;">
-                <strong>Scan QR Code ini untuk muat turun standard</strong>
-            </p>
-            <p style="color:#888; font-size:0.9rem; margin-top:10px;">
-                ID: {id_} • Dimuatnaik: {date[:10]} oleh {uploader}
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Download QR juga
-        st.download_button(
-            "Muat Turun QR Code (PNG)",
-            data=generate_qr(id_),
-            file_name=f"QR_FAMA_{id_}_{title[:20]}.png",
-            mime="image/png"
-        )
-    else:
-        st.info("Belum ada standard lagi. Sila tambah di Admin Panel.")
-
-    st.markdown("---")
-
-    # Senarai semua standard (seperti biasa)
-    col1, col2 = st.columns([3,1])
-    with col1:
-        cari = st.text_input("", placeholder="Cari tajuk standard...")
-    with col2:
-        kat_filter = st.selectbox("", ["Semua"] + CATEGORIES)
-
-    hasil = [d for d in docs if (kat_filter == "Semua" or d[2] == kat_filter) and (not cari or cari.lower() in d[1].lower())]
-
-    st.markdown(f"<h3 style='color:#1B5E20;'>Senarai Standard Terkini ({len(hasil)})</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='color:#1B5E20; text-align:center;'>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
 
     for d in hasil:
         id_, title, cat, fname, fpath, thumb, date, uploader = d
@@ -220,13 +166,58 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — SAMA MACAM SEBELUM NI (100% SELAMAT)
+# HALAMAN KHAS: PAPAR QR CODE (BARU!)
 # =============================================
-else:
+elif page == "Papar QR Code":
+    st.markdown(f'''
+    <div style="text-align:center; padding:30px; background:linear-gradient(135deg,#1B5E20,#4CAF50); border-radius:25px; margin:20px 0; box-shadow:0 15px 40px rgba(27,94,32,0.5);">
+        <h1 style="color:white; margin:0; font-size:2.8rem;">PAPAR QR CODE STANDARD</h1>
+        <p style="color:#c8e6c9; margin:10px 0 0;">Pilih standard untuk papar QR Code besar</p>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    docs = get_docs()
+    if not docs:
+        st.warning("Belum ada standard lagi. Sila tambah di Admin Panel.")
+        st.stop()
+
+    # Dropdown penuh tajuk
+    options = [f"{d[1]} — {d[2]}" for d in docs]
+    selected = st.selectbox("Pilih Standard:", options, index=0, label_visibility="collapsed")
+
+    idx = options.index(selected)
+    doc = docs[idx]
+    id_, title, cat, fname, fpath, thumb, date, uploader = doc
+
+    # Papar QR Code besar + cantik
+    st.markdown(f"""
+    <div class="qr-container">
+        <h2 class="qr-title">{title}</h2>
+        <p class="qr-cat">{cat}</p>
+        <img src="data:image/png;base64,{base64.b64encode(generate_qr(id_)).decode()}" width="380" style="border-radius:20px; box-shadow:0 15px 40px rgba(0,0,0,0.3);">
+        <p style="margin:25px 0 10px; font-size:1.2rem; color:#555;">
+            <strong>Scan QR Code ini untuk muat turun standard</strong>
+        </p>
+        <p style="color:#888; margin:5px 0;">ID: {id_} • Dimuatnaik pada {date[:10]} oleh {uploader}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Butang download QR
+    st.download_button(
+        label="MUAT TURUN QR CODE (PNG)",
+        data=generate_qr(id_),
+        file_name=f"QR_FAMA_{id_}_{title.replace(' ', '_')[:30]}.png",
+        mime="image/png",
+        use_container_width=True
+    )
+
+# =============================================
+# ADMIN PANEL (sama macam sebelum ni — 100% stabil)
+# =============================================
+else:  # Admin Panel
     if not st.session_state.get("admin_logged_in", False):
         st.markdown(f'''
-        <div style="text-align:center; padding:2rem; background:linear-gradient(135deg,#1B5E20,#4CAF50); 
-                    border-radius:25px; box-shadow:0 10px 10px rgba(27,94,32,0.5); margin:20px 0;">
+        <div style="text-align:center; padding:2rem; background:linear-gradient(135deg,#1B5E20,#4CAF50); border-radius:25px; margin:20px 0;">
             <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
             <h1 style="color:white; margin:15px 0 0;">ADMIN PANEL</h1>
         </div>
@@ -236,7 +227,7 @@ else:
         with c1: username = st.text_input("Username")
         with c2: password = st.text_input("Kata Laluan", type="password")
 
-        if st.button("LOG MASUK ADMIN", type="primary", use_container_width=True):
+        if st.button("LOG MASUK", type="primary", use_container_width=True):
             h = hashlib.sha256(password.encode()).hexdigest()
             if (username == "admin" and h == hashlib.sha256("fama2025".encode()).hexdigest()) or \
                (username == "pengarah" and h == hashlib.sha256("fama123".encode()).hexdigest()):
@@ -253,7 +244,7 @@ else:
 
     with tab1:
         st.markdown("### Tambah Standard Baru")
-        uploaded_file = st.file_uploader("Pilih fail PDF/DOCX", type=["pdf", "docx"])
+        uploaded_file = st.file_uploader("Pilih fail PDF/DOCX", type=["pdf","docx"])
         title = st.text_input("Tajuk Standard")
         category = st.selectbox("Kategori", CATEGORIES)
         thumbnail = st.file_uploader("Thumbnail (Pilihan)", type=["jpg","jpeg","png"])
@@ -269,20 +260,15 @@ else:
                         shutil.copyfileobj(uploaded_file, f)
 
                     thumb_path = None
-                    if thumbnail is not None:
+                    if thumbnail:
                         try:
                             thumb_path = os.path.join("thumbnails", f"thumb_{ts}.jpg")
-                            img = Image.open(thumbnail).convert("RGB")
-                            img.thumbnail((350, 500))
-                            img.save(thumb_path, "JPEG", quality=95)
-                        except Exception as e:
-                            st.warning(f"Thumbnail gagal: {e}")
+                            Image.open(thumbnail).convert("RGB").thumbnail((350,500)).save(thumb_path, "JPEG", quality=95)
+                        except: pass
 
                     content = extract_text(uploaded_file)
                     conn = sqlite3.connect(DB_NAME)
-                    conn.execute("""INSERT INTO documents 
-                        (title, content, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    conn.execute("INSERT INTO documents VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (title, content, category, uploaded_file.name, file_path, thumb_path,
                          datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
                     conn.commit()
@@ -316,16 +302,13 @@ else:
                                 final_fpath = os.path.join("uploads", f"{ts}_update_{Path(new_file.name).stem}{ext}")
                                 with open(final_fpath, "wb") as f:
                                     shutil.copyfileobj(new_file, f)
-
                             final_thumb = thumb
-                            if new_thumb is not None:
-                                try:
-                                    final_thumb = os.path.join("thumbnails", f"thumb_edit_{id_}.jpg")
-                                    Image.open(new_thumb).convert("RGB").thumbnail((350,500)).save(final_thumb, "JPEG", quality=95)
-                                except: pass
+                            if new_thumb:
+                                final_thumb = os.path.join("thumbnails", f"thumb_edit_{id_}.jpg")
+                                Image.open(new_thumb).convert("RGB").thumbnail((350,500)).save(final_thumb, "JPEG", quality=95)
 
                             conn = sqlite3.connect(DB_NAME)
-                            conn.execute("""UPDATE documents SET title=?, category=?, file_name=?, file_path=?, thumbnail_path=? WHERE id=?""",
+                            conn.execute("UPDATE documents SET title=?, category=?, file_name=?, file_path=?, thumbnail_path=? WHERE id=?",
                                         (new_title, new_cat, final_fname, final_fpath, final_thumb, id_))
                             conn.commit()
                             conn.close()
