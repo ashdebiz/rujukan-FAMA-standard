@@ -102,7 +102,7 @@ def get_docs():
 # SIDEBAR
 # =============================================
 with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
+    st.image("https://share.google/images/br6saJcyNnzGHkEf6", width=80)
     st.markdown("<h3 style='color:white;text-align:center;margin-top:10px;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
     page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
 
@@ -114,7 +114,7 @@ if page == "Halaman Utama":
     <div class="header-container">
         <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" class="fama-logo">
         <h1 class="header-title">RUJUKAN STANDARD FAMA</h1>
-        <p class="header-subtitle">Sistem Digital Rasmi • 2025</p>
+        <p class="header-subtitle">Bahagian Regulasi Pasaran</p>
     </div>
     ''', unsafe_allow_html=True)
     
