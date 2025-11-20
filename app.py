@@ -166,7 +166,7 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# PAPAR QR CODE — CARI LANGSUNG (TANPA DROPLIST!)
+# PAPAR QR CODE — CARI LANGSUNG + SETIAP QR 100% UNIK MENGIKUT ID!
 # =============================================
 elif page == "Papar QR Code":
     st.markdown(f'''
@@ -184,15 +184,15 @@ elif page == "Papar QR Code":
         st.info("Belum ada standard. Sila tambah di Admin Panel.")
         st.stop()
 
-    # KOTAK CARIAN BESAR
+    # Kotak carian besar
     search = st.text_input(
         "",
-        placeholder="Contoh: timun, tomato, ros, durian, standard sayur...",
+        placeholder="Contoh: timun, tomato, ros, durian, standard sayur, bunga...",
         label_visibility="collapsed"
     ).strip()
 
     if not search:
-        st.info("Sila taip nama standard untuk papar QR Code")
+        st.info("Taip nama standard untuk papar QR Code")
         st.stop()
 
     # Cari padanan (tajuk atau kategori)
@@ -202,68 +202,93 @@ elif page == "Papar QR Code":
     ]
 
     if not matches:
-        st.warning(f"Tiada standard ditemui untuk \"{search}\"")
+        st.warning(f"Tiada standard ditemui untuk kata kunci: \"{search}\"")
         st.stop()
 
-    st.success(f"Ditemui {len(matches)} standard yang padan")
+    st.success(f"Ditemui {len(matches)} standard yang padan dengan \"{search}\"")
 
-    # PAPAR QR CODE — SATU BESAR ATAU GRID KALAU RAMAI
+    # Jika hanya 1 padanan → papar besar tengah-tengah
     if len(matches) == 1:
         doc = matches[0]
         id_, title, cat, fname, fpath, thumb, date, uploader = doc
-        qr_b64 = base64.b64encode(generate_qr(id_)).decode()
+
+        # Pastikan QR dijana dari ID unik!
+        qr_data = generate_qr(id_)
+        qr_b64 = base64.b64encode(qr_data).decode()
 
         st.markdown(f"""
         <div class="qr-container">
             <h2 class="qr-title">{title}</h2>
             <p class="qr-cat">{cat}</p>
-            <img src="data:image/png;base64,{qr_b64}" width="420">
-            <p style="margin:30px 0 10px; font-size:1.4rem; color:#333;">
-                <strong>Scan QR Code untuk muat turun standard</strong>
-            </p>
-            <p style="color:#666; font-size:1.1rem;">
-                ID: {id_} • {date[:10]} • {uploader}
-            </p>
+            <img src="data:image/png;base64,{qr_b64}" width="450">
+            <div style="margin-top:30px; padding:15px; background:#f0f8f0; border-radius:15px;">
+                <p style="margin:10px 0; font-size:1.4rem; color:#1B5E20;">
+                    <strong>Scan QR Code ini → terus muat turun standard</strong>
+                </p>
+                <p style="margin:5px 0; color:#2E7D32;">
+                    ID Standard: <strong>{id_}</strong> • Dimuatnaik: <strong>{date[:10]}</strong> oleh <strong>{uploader}</strong>
+                </p>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
         c1, c2 = st.columns(2)
         with c1:
-            st.download_button("MUAT TURUN QR CODE", generate_qr(id_), f"QR_{id_}_{title[:30]}.png", "image/png", use_container_width=True)
+            st.download_button(
+                "MUAT TURUN QR CODE (PNG)",
+                data=qr_data,
+                file_name=f"QR_FAMA_ID{id_}_{title.replace(' ', '_')[:40]}.png",
+                mime="image/png",
+                use_container_width=True
+            )
         with c2:
             if os.path.exists(fpath):
                 with open(fpath, "rb") as f:
-                    st.download_button("MUAT TURUN STANDARD", f.read(), fname, use_container_width=True)
+                    st.download_button(
+                        "MUAT TURUN FAIL STANDARD",
+                        data=f.read(),
+                        file_name=fname,
+                        mime="application/octet-stream",
+                        use_container_width=True
+                    )
 
+    # Jika lebih dari 1 → grid cantik (setiap QR unik!)
     else:
-        # GRID KALAU LEBIH DARI SATU
-        st.markdown("<h3 style='text-align:center; color:#1B5E20;'>Semua Standard yang Padan:</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align:center; color:#1B5E20; margin-top:30px;'>Semua Standard yang Padan:</h3>", unsafe_allow_html=True)
+        
         cols = st.columns(3)
-        for i, doc in enumerate(matches):
+        for idx, doc in enumerate(matches):
             id_, title, cat, fname, fpath, thumb, date, uploader = doc
-            qr_b64 = base64.b64encode(generate_qr(id_)).decode()
 
-            with cols[i % 3]:
+            # QR Code dijana dari ID unik → 100% berbeza!
+            qr_data = generate_qr(id_)
+            qr_b64 = base64.b64encode(qr_data).decode()
+
+            with cols[idx % 3]:
                 st.markdown(f"""
-                <div style="background:white; border-radius:20px; padding:20px; text-align:center; 
-                            box-shadow:0 10px 30px rgba(0,0,0,0.1); border:3px solid #4CAF50; margin:15px 0;">
-                    <p style="font-weight:bold; color:#1B5E20; margin:10px 0 15px; font-size:1.1rem;">
-                        {title[:40]}{'...' if len(title)>40 else ''}
+                <div style="background:white; border-radius:25px; padding:20px; text-align:center; 
+                            box-shadow:0 15px 40px rgba(27,94,32,0.15); border:4px solid #4CAF50; margin:20px 0;">
+                    <p style="font-weight:bold; color:#1B5E20; margin:8px 0 12px; font-size:1.1rem; line-height:1.3;">
+                        {title[:50]}{'...' if len(title)>50 else ''}
                     </p>
-                    <p style="color:#4CAF50; font-size:0.9rem; margin:5px 0;">{cat}</p>
-                    <img src="data:image/png;base64,{qr_b64}" width="180">
-                    <p style="font-size:0.8rem; color:#666; margin:10px 0 5px;">
-                        ID: {id_} • {uploader}
+                    <p style="color:#4CAF50; font-weight:bold; margin:5px 0 15px;">{cat}</p>
+                    <img src="data:image/png;base64,{qr_b64}" width="200" style="border-radius:15px;">
+                    <p style="margin:15px 0 8px; color:#333; font-size:0.95rem;">
+                        <strong>ID: {id_}</strong>
                     </p>
-                    <a href="?doc={id_}" target="_blank">
-                        <button style="background:#4CAF50; color:white; border:none; padding:8px 15px; 
-                                       border-radius:10px; font-size:0.9rem; cursor:pointer;">
-                            Buka Standard
-                        </button>
-                    </a>
+                    <p style="color:#666; font-size:0.8rem; margin:5px 0;">
+                        {uploader} • {date[:10]}
+                    </p>
+                    <div style="margin-top:15px;">
+                        <a href="?doc={id_}" target="_blank">
+                            <button style="background:#4CAF50; color:white; border:none; padding:10px 18px; 
+                                           border-radius:12px; font-weight:bold; cursor:pointer;">
+                                Buka Standard
+                            </button>
+                        </a>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
-
 # =============================================
 # ADMIN PANEL (sama macam sebelum ni — 100% stabil)
 # =============================================
