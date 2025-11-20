@@ -2,4 +2,5 @@ streamlit
 PyPDF2
 python-docx
 pdf2image
-pillow
+Pillow
+poppler-utils
