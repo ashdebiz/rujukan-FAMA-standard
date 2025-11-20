@@ -162,7 +162,7 @@ else:
         st.markdown(f'''
         <div class="header-container">
             <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80" style="display:block; margin:0 auto 15px;">
-            <h1 style="color:white; text-align:center; font-size:2.8rem; margin:0; text-shadow: 2px 2px 8px black;">
+            <h1 style="color:black; text-align:center; font-size:2.8rem; margin:0; text-shadow: 2px 2px 8px black;">
                 ADMIN PANEL
             </h1>
         </div>
