@@ -125,7 +125,6 @@ def get_docs():
 # SIDEBAR
 # =============================================
 with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=160)
     st.markdown("<h2 style='color:white;text-align:center;'>FAMA STANDARD</h2>", unsafe_allow_html=True)
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
@@ -137,9 +136,9 @@ if page == "Halaman Utama":
     # HEADER CANTIK DENGAN LOGO TENGAH
     st.markdown(f'''
     <div class="header-container">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" class="fama-logo">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" class="fama-logo" width=150>
         <h1 class="header-title">RUJUKAN STANDARD FAMA</h1>
-        <p class="header-subtitle">Sistem Digital Rasmi Jabatan Pertanian Malaysia • 2025</p>
+        <p class="header-subtitle">Bahagian Regulasi Pasaran</p>
     </div>
     ''', unsafe_allow_html=True)
     
