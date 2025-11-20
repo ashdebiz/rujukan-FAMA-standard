@@ -14,7 +14,7 @@ from PIL import Image
 # =============================================
 # TEMA CANTIK FAMA
 # =============================================
-st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="rice", layout="centered")
+st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="tree", layout="centered")
 
 st.markdown("""
 <style>
@@ -96,15 +96,15 @@ def get_docs():
 # SIDEBAR
 # =============================================
 with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=180)
+    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
     st.markdown("<h2 style='color:white;text-align:center;'>FAMA STANDARD</h2>", unsafe_allow_html=True)
-    page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
+    page = st.selectbox("Menu", ["Halaman Utama", "Panel Admin "], label_visibility="collapsed")
 
 # =============================================
 # HALAMAN UTAMA
 # =============================================
 if page == "Halaman Utama":
-    st.markdown('<div class="header"><h1>RUJUKAN STANDARD FAMA</h1><h3>Sistem Digital Rasmi 2025</h3></div>', unsafe_allow_html=True)
+    st.markdown('<div class="header"><h1>RUJUKAN STANDARD FAMA</h1><h3>Bahagian Regulasi Pasaran</h3></div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns([3,1])
     with col1: cari = st.text_input("", placeholder="Cari tajuk standard...")
