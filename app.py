@@ -102,7 +102,7 @@ def get_docs():
 # SIDEBAR
 # =============================================
 with st.sidebar:
-    st.image("https://share.google/images/br6saJcyNnzGHkEf6", width=80)
+    st.image("https://d1csarkz8obe9u.cloudfront.net/posterpreviews/9e87ee02b72ac2273edd3aae9cc0a8af_screen.jpg?ts=1763630610&", width=80)
     st.markdown("<h3 style='color:white;text-align:center;margin-top:10px;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
     page = st.selectbox("Menu", ["Halaman Utama", "Admin Panel"], label_visibility="collapsed")
 
