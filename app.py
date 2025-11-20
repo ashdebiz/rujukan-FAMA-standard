@@ -9,6 +9,16 @@ from docx import Document
 import io
 import zipfile
 from pathlib import Path
+from pydrive2.auth import GoogleAuth
+from pydrive2.drive import GoogleDrive
+
+# Auto authenticate pertama kali je
+gauth = GoogleAuth()
+gauth.LocalWebserverAuth()  # akan buka browser sekali je
+drive = GoogleDrive(gauth)
+
+# Set folder ID (dari URL folder kau)
+FOLDER_ID = "1RHHcCLR-n7k2rcwZr-QBFBD0KKpcAYTy"  # tukar dengan ID folder kau
 
 # =============================================
 # SETUP
