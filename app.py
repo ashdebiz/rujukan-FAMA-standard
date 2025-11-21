@@ -124,11 +124,11 @@ def show_stats():
         <h2 style="text-align:center; margin:0 0 14px 0; font-size:2rem;">STATISTIK RUJUKAN FAMA STANDARD</h2>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; text-align:center;">
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:3rem; color:#e8f5e8;">{total}</h1>
+                <h1 style="margin:0; font-size:2.2rem; color:#e8f5e8;">{total}</h1>
                 <p style="margin:5px 0 0; font-size:1.1rem;">JUMLAH STANDARD</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:3rem; color:#b9f6ca;">{baru}</h1>
+                <h1 style="margin:0; font-size:2.2rem; color:#b9f6ca;">{baru}</h1>
                 <p style="margin:5px 0 0; font-size:1.1rem;">BARU (30 HARI)</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
