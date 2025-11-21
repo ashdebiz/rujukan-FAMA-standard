@@ -13,12 +13,6 @@ from PIL import Image
 import base64
 
 # =============================================
-# CLEAR ALL CACHE SEKARANG JUGA (PENTING!!!)
-# =============================================
-st.cache_data.clear()
-st.cache_resource.clear()
-
-# =============================================
 # KONFIGURASI & TEMA
 # =============================================
 st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="leaf", layout="centered", initial_sidebar_state="expanded")
@@ -42,17 +36,14 @@ DB_NAME = "fama_standards.db"
 CATEGORIES = ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"]
 
 # =============================================
-# USER + SUPERADMIN
+# USER
 # =============================================
 USERS = {
-    "admin":      hashlib.sha256("fama2025".encode()).hexdigest(),
-    "pengarah":   hashlib.sha256("fama123".encode()).hexdigest(),
+    "admin": hashlib.sha256("fama2025".encode()).hexdigest(),
+    "pengarah": hashlib.sha256("fama123".encode()).hexdigest(),
     "superadmin": hashlib.sha256("super1234".encode()).hexdigest()
 }
 
-# =============================================
-# DATABASE INIT
-# =============================================
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -68,17 +59,17 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Pastikan database wujud
-if not os.path.exists(DB_NAME):
-    init_db()
+init_db()
 
 # =============================================
-# FUNGSI LAIN (sama)
+# FUNGSI SELAMAT
 # =============================================
 def save_thumbnail_safely(file, prefix="thumb"):
     if not file: return None
     try:
-        img = Image.open(io.BytesIO(file.getvalue()))
+        data = file.getvalue()
+        if len(data) > 5_000_000: return None
+        img = Image.open(io.BytesIO(data))
         if img.format not in ["JPEG","JPG","PNG","WEBP"]: return None
         if img.mode != "RGB": img = img.convert("RGB")
         img.thumbnail((350,500), Image.Resampling.LANCZOS)
@@ -107,71 +98,104 @@ def generate_qr(id_):
     buf = io.BytesIO(); img.save(buf, "PNG")
     return buf.getvalue()
 
-# TIADA CACHE SAMA SEKALI — INI YANG BUAT RESET 100% BERSIH!
+# BETULKAN get_docs — GUNA SELECT * + DICTIONARY UNPACKING
 def get_docs():
     if not os.path.exists(DB_NAME):
         return []
     conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = sqlite3.Row  # Kembali dict-like
     cur = conn.cursor()
     cur.execute("SELECT * FROM documents ORDER BY upload_date DESC")
     rows = cur.fetchall()
     conn.close()
-    return [tuple(row) for row in rows]
+    return [dict(row) for row in rows]  # Return list of dict
 
 def show_stats():
     docs = get_docs()
     total = len(docs)
-    baru = len([d for d in docs if d[6][:10] >= (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")]) if docs else 0
-    latest = max((d[6][:10] for d in docs), default="Tiada") if docs else "Tiada"
+    baru = len([d for d in docs if d['upload_date'][:10] >= (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")]) if docs else 0
+    latest = max((d['upload_date'][:10] for d in docs), default="Belum ada") if docs else "Belum ada"
+    cat_count = {c: sum(1 for d in docs if d['category'] == c) for c in CATEGORIES}
     st.markdown(f"""
-    <div style="background:linear-gradient(135deg,#1B5E20,#4CAF50); color:white; padding:25px; border-radius:25px; text-align:center;">
-        <h2>STATISTIK</h2>
-        <h1>{total}</h1><p>JUMLAH STANDARD</p>
-        <h3>{baru} baru (30 hari) • Terkini: {latest}</h3>
+    <div style="background:linear-gradient(135deg,#1B5E20,#4CAF50); color:white; padding:25px; border-radius:25px;">
+        <h2 style="text-align:center;">STATISTIK RUJUKAN STANDARD FAMA</h2>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; text-align:center;">
+            <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
+                <h1 style="margin:0; font-size:3rem;">{total}</h1><p>JUMLAH STANDARD</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
+                <h1 style="margin:0; font-size:3rem;">{baru}</h1><p>BARU (30 HARI)</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
+                <h1 style="margin:0; font-size:2rem;">{latest}</h1><p>TERKINI</p>
+            </div>
+        </div>
+        <div style="margin-top:20px; display:grid; grid-template-columns: repeat(4,1fr); gap:10px;">
+            {''.join(f'<div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:10px;"><strong>{c}</strong><br>{cat_count[c]}</div>' for c in CATEGORIES)}
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
 # =============================================
-# SIDEBAR & PAGE
+# SIDEBAR
 # =============================================
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
-    st.markdown("<h3 style='color:white;text-align:center;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:white; text-align:center;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#c8e6c9; text-align:center;'>Sistem Digital Rasmi</p>", unsafe_allow_html=True)
+    st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
 
 # =============================================
-# HALAMAN UTAMA & QR (ringkas)
+# HALAMAN UTAMA & QR (pakai dict unpacking)
 # =============================================
-if page != "Admin Panel":
-    if page == "Halaman Utama":
-        st.markdown("<h1 style='text-align:center;color:#1B5E20;'>RUJUKAN STANDARD FAMA</h1>", unsafe_allow_html=True)
-        show_stats()
-        docs = get_docs()
-        for d in docs:
-            id_, title, cat, fname, fpath, thumb, date, uploader = d
-            with st.container():
-                col1, col2 = st.columns([1,3])
-                with col1:
-                    img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/350x500/4CAF50/white?text=FAMA"
-                    st.image(img)
-                with col2:
-                    st.markdown(f"**{title}** • {cat} • {date[:10]}")
-                    if os.path.exists(fpath):
-                        with open(fpath, "rb") as f:
-                            st.download_button("MUAT TURUN", f.read(), fname)
+if page == "Halaman Utama":
+    st.markdown("<h1 style='text-align:center; color:#1B5E20;'>RUJUKAN STANDARD FAMA</h1>", unsafe_allow_html=True)
+    show_stats()
+    col1, col2 = st.columns([3,1])
+    with col1: cari = st.text_input("", placeholder="Cari tajuk standard...")
+    with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES)
+    docs = get_docs()
+    hasil = [d for d in docs if (kat == "Semua" or d['category'] == kat) and (not cari or cari.lower() in d['title'].lower())]
+    st.markdown(f"<h3>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
+    for d in hasil:
+        id_ = d['id']
+        title = d['title']
+        cat = d['category']
+        fname = d['file_name']
+        fpath = d['file_path']
+        thumb = d['thumbnail_path']
+        date = d['upload_date']
+        uploader = d['uploaded_by']
+        with st.container():
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            c1, c2 = st.columns([1,3])
+            with c1:
+                img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/350x500/4CAF50/white?text=FAMA"
+                st.image(img)
+            with c2:
+                st.markdown(f"<h2 style='margin:0; color:#1B5E20;'>{title}</h2>", unsafe_allow_html=True)
+                st.caption(f"**{cat}** • {date[:10]} • {uploader}")
+                if fpath and os.path.exists(fpath):
+                    with open(fpath, "rb") as f:
+                        st.download_button("MUAT TURUN", f.read(), fname)
+            st.markdown("</div>", unsafe_allow_html=True)
 
-    else:  # Papar QR Code
-        st.markdown("<h1 style='text-align:center;color:#1B5E20;'>CARI QR CODE</h1>", unsafe_allow_html=True)
-        search = st.text_input("Cari standard").strip()
-        if search:
-            matches = [d for d in get_docs() if search.lower() in d[1].lower()]
-            for d in matches:
-                st.image(generate_qr(d[0]), width=300)
-                st.write(f"**{d[1]}** • {d[2]}")
+elif page == "Papar QR Code":
+    st.markdown("<h1 style='text-align:center; color:#1B5E20;'>CARI QR CODE</h1>", unsafe_allow_html=True)
+    show_stats()
+    search = st.text_input("Cari standard").strip()
+    if search:
+        matches = [d for d in get_docs() if search.lower() in d['title'].lower() or search.lower() in d['category'].lower()]
+        for d in matches:
+            id_ = d['id']
+            title = d['title']
+            cat = d['category']
+            st.image(generate_qr(id_), width=300)
+            st.write(f"**{title}** • {cat}")
 
 # =============================================
-# ADMIN PANEL — RESET 100% BERKESAN!
+# ADMIN PANEL — HANYA SUPERADMIN BOLEH RESET
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -188,58 +212,81 @@ else:
                 st.error("Salah!")
         st.stop()
 
-    st.success(f"Login sebagai: {st.session_state.user.upper()}")
+    role = "SUPERADMIN" if st.session_state.superadmin else "ADMIN"
+    st.markdown(f"<h1 style='text-align:center;'>Selamat Datang, {st.session_state.user.upper()} ({role})</h1>", unsafe_allow_html=True)
 
     tabs = ["Tambah", "Senarai"]
     if st.session_state.superadmin:
         tabs.append("SUPERADMIN")
     t1, t2, *extra = st.tabs(tabs)
 
-    # Tambah & Senarai (sama macam biasa) — tak payah letak sini panjang
+    # Tambah & Senarai — ringkas
+    with t1:
+        file = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
+        title = st.text_input("Tajuk")
+        cat = st.selectbox("Kategori", CATEGORIES)
+        thumb = st.file_uploader("Thumbnail", type=["jpg","png"])
+        if file and title:
+            if st.button("SIMPAN"):
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                ext = Path(file.name).suffix
+                path = f"uploads/{ts}_{Path(file.name).stem}{ext}"
+                with open(path, "wb") as f: f.write(file.getvalue())
+                tpath = save_thumbnail_safely(thumb, "new")
+                content = extract_text(file)
+                conn = sqlite3.connect(DB_NAME)
+                conn.execute("INSERT INTO documents (title, content, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by) VALUES (?,?,?, ?,?,?,?,?)",
+                             (title, content, cat, file.name, path, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
+                conn.commit(); conn.close()
+                st.success("Disimpan!"); st.balloons()
 
+    with t2:
+        for d in get_docs():
+            with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
+                new_title = st.text_input("Tajuk", d['title'], key=f"t{d['id']}")
+                new_cat = st.selectbox("Kategori", CATEGORIES, CATEGORIES.index(d['category']), key=f"c{d['id']}")
+                new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","png"], key=f"th{d['id']}")
+                if st.button("KEMASKINI", key=f"u{d['id']}"):
+                    new_tpath = d['thumbnail_path']
+                    if new_thumb:
+                        new_tpath = save_thumbnail_safely(new_thumb, f"edit_{d['id']}")
+                    conn = sqlite3.connect(DB_NAME)
+                    conn.execute("UPDATE documents SET title=?, category=?, thumbnail_path=? WHERE id=?", 
+                                 (new_title, new_cat, new_tpath, d['id']))
+                    conn.commit(); conn.close()
+                    st.success("Dikemaskini!"); st.rerun()
+
+    # SUPERADMIN TAB
     if st.session_state.superadmin and extra:
         with extra[0]:
-            st.error("SUPERADMIN SAHAJA!")
-
+            st.markdown("### PENGURUSAN DATABASE")
+            st.error("HANYA SUPERADMIN BOLEH GUNA!")
             c1, c2, c3 = st.columns(3)
-
             with c1:
                 if os.path.exists(DB_NAME):
                     with open(DB_NAME, "rb") as f:
                         st.download_button("DOWNLOAD DB", f.read(), f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
-
             with c2:
                 uploaded = st.file_uploader("Upload DB baru", type=["db"])
                 if uploaded and st.button("GANTI DB"):
-                    shutil.copy(DB_NAME, f"backups/backup_before_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
-                    with open(DB_NAME, "wb") as f:
-                        f.write(uploaded.getvalue())
+                    shutil.copy(DB_NAME, f"backups/backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
+                    with open(DB_NAME, "wb") as f: f.write(uploaded.getvalue())
                     st.success("DB diganti! Restart...")
                     st.rerun()
-
             with c3:
-                st.markdown("### RESET TOTAL")
-                if st.button("PADAM SEMUA DATA", type="secondary"):
-                    if st.checkbox("Saya faham semua akan hilang"):
-                        if st.checkbox("Saya PASTI 100%"):
-                            if st.button("YA, PADAM SEKARANG!", type="primary"):
-                                with st.spinner("Memadam segalanya..."):
-                                    # 1. Padam DB
-                                    if os.path.exists(DB_NAME):
-                                        os.remove(DB_NAME)
-                                    # 2. Kosongkan folder
-                                    for folder in ["uploads", "thumbnails"]:
-                                        if os.path.exists(folder):
-                                            shutil.rmtree(folder)
-                                        os.makedirs(folder)
-                                    # 3. Clear semua cache
-                                    st.cache_data.clear()
-                                    st.cache_resource.clear()
-                                    # 4. Cipta DB baru kosong
-                                    init_db()
-                                    st.success("SELESAI! Sistem bersih 100%")
-                                    st.balloons()
-                                    st.rerun()
+                if st.button("RESET TOTAL", type="secondary"):
+                    if st.checkbox("Padam semua data"):
+                        if st.button("YA, RESET!", type="primary"):
+                            with st.spinner("Reset..."):
+                                if os.path.exists(DB_NAME): os.remove(DB_NAME)
+                                for folder in ["uploads", "thumbnails"]:
+                                    if os.path.exists(folder): shutil.rmtree(folder)
+                                    os.makedirs(folder)
+                                st.cache_data.clear()
+                                st.cache_resource.clear()
+                                init_db()
+                                st.success("RESET BERJAYA! Kosong 100%")
+                                st.rerun()
 
     if st.button("Log Keluar"):
         st.session_state.clear()
