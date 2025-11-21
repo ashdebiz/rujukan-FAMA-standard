@@ -170,9 +170,13 @@ def show_stats():
 # SIDEBAR
 # =============================================
 with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
-    st.markdown("<h3 style='color:white; text-align:center;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#c8e6c9; text-align:center;'>Bahagian Regulasi Pasaran</p>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align: center; padding: 30px 0;">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
+        <h3 style="color:white; margin:15px 0 5px 0; font-weight: bold;">FAMA STANDARD</h3>
+        <p style="color:#c8e6c9; margin:0; font-size:0.95rem;">Sistem Digital Rasmi</p>
+    </div>
+    """, unsafe_allow_html=True)
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
 
