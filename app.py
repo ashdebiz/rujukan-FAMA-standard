@@ -119,7 +119,7 @@ def show_stats():
             cat_count[d[2]] += 1
 
     st.markdown(f"""
-    <div style="background:linear-gradient(to bottom, #0000cc 0%, #0000cc 100%); border-radius:25px; padding:25px; 
+    <div style="background:linear-gradient(to bottom, #0066ff 0%, #3399ff 100%); border-radius:25px; padding:25px; 
                 box-shadow:0 15px 40px rgba(27,94,32,0.4); margin:20px 0; color:white;">
         <h2 style="text-align:center; margin:0 0 14px 0; font-size:2rem;">STATISTIK RUJUKAN FAMA STANDARD</h2>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; text-align:center;">
