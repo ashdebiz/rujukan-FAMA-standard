@@ -173,30 +173,20 @@ with st.sidebar:
 # HALAMAN UTAMA & QR (ringkas)
 # =============================================
 if page == "Halaman Utama":
-    st.markdown("<h1 style='text-align:center; color:#1B5E20;'>RUJUKAN FAMA STANDARD </h1>", unsafe_allow_html=True)
-    show_stats()
-    col1, col2 = st.columns([3,1])
-    with col1: cari = st.text_input("", placeholder="Cari tajuk standard...")
-    with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES)
-    docs = get_docs()
-    hasil = [d for d in docs if (kat == "Semua" or d[2] == kat) and (not cari or cari.lower() in d[1].lower())]
-    st.markdown(f"<h3>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
-    for d in hasil:
-        id_, title, cat, fname, fpath, thumb, date, uploader = d
-        with st.container():
-            st.markdown("<div class='card'>", unsafe_allow_html=True)
-            c1, c2 = st.columns([1,3])
-            with c1:
-                img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/350x500/4CAF50/white?text=FAMA"
-                st.image(img, use_container_width=True)
-            with c2:
-                st.markdown(f"<h2 style='margin:0; color:#1B5E20;'>{title}</h2>", unsafe_allow_html=True)
-                st.caption(f"**{cat}** • {date[:10]} • {uploader}")
-                if fpath and os.path.exists(fpath):
-                    with open(fpath, "rb") as f:
-                        st.download_button("MUAT TURUN", f.read(), fname, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-
+    st.markdown(f'''
+    <div style="position:relative; border-radius:25px; overflow:hidden; box-shadow:0 15px 40px rgba(27,94,32,0.5); margin:20px 0;">
+        <img src="https://w7.pngwing.com/pngs/34/259/png-transparent-fruits-and-vegetables.png?w=1400&h=500&fit=crop" style="width:100%; height:300px; object-fit:cover;">
+        <div style="position:absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, rgba(27,94,32,0.85), rgba(76,175,80,0.75));"></div>
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; width:100%;">
+            <h1 style="color:white; font-size:3.3rem; font-weight:900; margin:0; text-shadow: 4px 4px 15px rgba(0,0,0,0.8);">
+                RUJUKAN FAMA STANDARD 
+            </h1>
+            <p style="color:#e8f5e8; font-size:1.5rem; margin:20px 0 0; text-shadow: 2px 2px 8px rgba(0,0,0,0.7);">
+                Hasil Keluaran Pertanian Tempatan
+            </p>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
 elif page == "Papar QR Code":
     st.markdown("<h1 style='text-align:center; color:#1B5E20;'>CARI & PAPAR QR CODE</h1>", unsafe_allow_html=True)
     show_stats()
