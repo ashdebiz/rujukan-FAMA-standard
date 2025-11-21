@@ -128,11 +128,11 @@ def show_stats():
                 <p style="margin:5px 0 0; font-size:1.1rem;">JUMLAH STANDARD</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:2.2rem; color:#b9f6ca;">{baru}</h1>
+                <h1 style="margin:0; font-size:2.2rem; color:#e8f5e8;">{baru}</h1>
                 <p style="margin:5px 0 0; font-size:1.1rem;">BARU (30 HARI)</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:2.2rem; color:#c8e6c9;">{latest}</h1>
+                <h1 style="margin:0; font-size:2.2rem; color:#e8f5e8;">{latest}</h1>
                 <p style="margin:5px 0 0; font-size:1rem;">TERKINI DIUPLOAD</p>
             </div>
         </div>
