@@ -148,15 +148,15 @@ def show_stats():
         <h2 style="text-align:center; margin:0 0 20px;">STATISTIK RUJUKAN FAMA STANDARD </h2>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; text-align:center;">
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:2rem;">{total}</h1>
+                <h1 style="margin:0; font-size:1.5rem;">{total}</h1>
                 <p>JUMLAH STANDARD</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:2rem;">{baru}</h1>
+                <h1 style="margin:0; font-size:1.5rem;">{baru}</h1>
                 <p>BARU (30 HARI)</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:2rem;">{latest}</h1>
+                <h1 style="margin:0; font-size:1.5rem;">{latest}</h1>
                 <p>TERKINI</p>
             </div>
         </div>
@@ -174,7 +174,7 @@ with st.sidebar:
     <div style="text-align: center; padding: 30px 0;">
         <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
         <h3 style="color:white; margin:15px 0 5px 0; font-weight: bold;">FAMA STANDARD</h3>
-        <p style="color:#c8e6c9; margin:0; font-size:0.95rem;">Sistem Digital Rasmi</p>
+        <p style="color:#c8e6c9; margin:0; font-size:0.95rem;">Bahagian Regulasi Pasaran</p>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
