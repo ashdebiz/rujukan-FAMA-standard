@@ -122,6 +122,61 @@ with st.sidebar:
     ], label_visibility="collapsed")
 
 # =============================================
+# STATISTIK CANTIK — LETAK DI ATAS HALAMAN UTAMA & PAPAR QR
+# =============================================
+def show_stats():
+    docs = get_docs()
+    total = len(docs)
+    
+    # Standard baru (30 hari terakhir)
+    from datetime import datetime, timedelta
+    thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    baru = len([d for d in docs if d[6] >= thirty_days_ago])  # d[6] = upload_date
+    
+    # Kategori count
+    cat_count = {"Keratan Bunga": 0, "Sayur-sayuran": 0, "Buah-buahan": 0, "Lain-lain": 0}
+    for d in docs:
+        cat_count[d[2]] += 1
+    
+    # Tarikh terkini
+    latest = max((d[6] for d in docs), default="Belum ada")[:10] if docs else "Belum ada"
+
+    st.markdown(f"""
+    <div style="background:linear-gradient(135deg,#1B5E20,#4CAF50); border-radius:25px; padding:25px; 
+                box-shadow:0 15px 40px rgba(27,94,32,0.4); margin:20px 0; color:white;">
+        <h2 style="text-align:center; margin:0 0 20px 0; font-size:2.3rem;">STATISTIK RUJUKAN STANDARD FAMA</h2>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; text-align:center;">
+            <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
+                <h1 style="margin:0; font-size:3rem; color:#e8f5e8;">{total}</h1>
+                <p style="margin:5px 0 0; font-size:1.1rem;">JUMLAH STANDARD</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
+                <h1 style="margin:0; font-size:3rem; color:#b9f6ca;">{baru}</h1>
+                <p style="margin:5px 0 0; font-size:1.1rem;">BARU (30 HARI)</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
+                <h1 style="margin:0; font-size:2.2rem; color:#c8e6c9;">{latest}</h1>
+                <p style="margin:5px 0 0; font-size:1rem;">TERKINI DIUPLOAD</p>
+            </div>
+        </div>
+        <div style="margin-top:25px; display:grid; grid-template-columns: repeat(4, 1fr); gap:15px; font-size:0.95rem;">
+            <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:12px;">
+                <strong>Keratan Bunga</strong><br>{cat_count["Keratan Bunga"]}
+            </div>
+            <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:12px;">
+                <strong>Sayur-sayuran</strong><br>{cat_count["Sayur-sayuran"]}
+            </div>
+            <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:12px;">
+                <strong>Buah-buahan</strong><br>{cat_count["Buah-buahan"]}
+            </div>
+            <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:12px;">
+                <strong>Lain-lain</strong><br>{cat_count["Lain-lain"]}
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+# =============================================
 # HALAMAN UTAMA
 # =============================================
 if page == "Halaman Utama":
