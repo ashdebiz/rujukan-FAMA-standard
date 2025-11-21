@@ -321,129 +321,149 @@ elif page == "Papar QR Code":
                 """, unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — 100% SELAMAT DENGAN THUMBNAIL ANTI-CRASH
+# ADMIN PANEL — DENGAN PENGURUSAN DATABASE YANG 100% BERFUNGSI
 # =============================================
 else:
-    if not st.session_state.get("admin_logged_in", False):
-        st.markdown(f'''
-        <div style="text-align:center; padding:2rem; background:linear-gradient(135deg,#1B5E20,#4CAF50); 
-                    border-radius:25px; box-shadow:0 15px 40px rgba(27,94,32,0.5); margin:20px 0;">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
-            <h1 style="color:white; margin:15px 0 0;">ADMIN PANEL</h1>
-        </div>
-        ''', unsafe_allow_html=True)
-
+    if not st.session_state.get("admin_logged_in"):
+        st.markdown("<h1 style='text-align:center; color:#1B5E20;'>ADMIN PANEL</h1>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         with c1: username = st.text_input("Username")
         with c2: password = st.text_input("Kata Laluan", type="password")
-
         if st.button("LOG MASUK", type="primary", use_container_width=True):
             h = hashlib.sha256(password.encode()).hexdigest()
-            if (username == "admin" and h == hashlib.sha256("fama2025".encode()).hexdigest()) or \
-               (username == "pengarah" and h == hashlib.sha256("fama123".encode()).hexdigest()):
+            if username in USERS and USERS[username] == h:
                 st.session_state.admin_logged_in = True
                 st.session_state.user = username
+                st.session_state.is_superadmin = (username == "superadmin")
                 st.rerun()
             else:
-                st.error("Salah username/kata laluan")
+                st.error("Salah username atau kata laluan")
         st.stop()
 
-    st.markdown(f"<h1 style='text-align:center; color:#1B5E20;'>Selamat Datang, {st.session_state.user.upper()}!</h1>", unsafe_allow_html=True)
+    badge = "SUPERADMIN" if st.session_state.is_superadmin else "ADMIN"
+    st.markdown(f"<h1 style='text-align:center;'>Selamat Datang, {st.session_state.user.upper()} <span style='color:#D32F2F;'>({badge})</span></h1>", unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["Tambah Standard Baru", "Senarai & Pengurusan"])
+    tabs = ["Tambah Standard", "Senarai & Edit"]
+    if st.session_state.is_superadmin:
+        tabs.append("Pengurusan Database")
+    tab1, tab2, *extra = st.tabs(tabs)
 
     with tab1:
         st.markdown("### Tambah Standard Baru")
-        uploaded_file = st.file_uploader("Pilih fail PDF/DOCX", type=["pdf", "docx"])
+        file = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
         title = st.text_input("Tajuk Standard")
-        category = st.selectbox("Kategori", CATEGORIES)
-        thumbnail = st.file_uploader("Thumbnail (JPG/PNG - Pilihan)", type=["jpg", "jpeg", "png"])
-
-        if uploaded_file and title:
-            if st.button("SIMPAN STANDARD", type="primary", use_container_width=True):
-                with st.spinner("Sedang memproses..."):
-                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    ext = Path(uploaded_file.name).suffix
-                    new_name = f"{ts}_{Path(uploaded_file.name).stem}{ext}"
-                    file_path = os.path.join("uploads", new_name)
-                    with open(file_path, "wb") as f:
-                        shutil.copyfileobj(uploaded_file, f)
-
-                    thumb_path = save_thumbnail_safely(thumbnail, prefix="new")
-
-                    content = extract_text(uploaded_file)
-                    conn = sqlite3.connect(DB_NAME)
-                    conn.execute("""INSERT INTO documents 
-                        (title, content, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (title, content, category, uploaded_file.name, file_path, thumb_path,
-                         datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
-                    conn.commit()
-                    conn.close()
-                    st.success("BERJAYA DISIMPAN!")
-                    st.balloons()
+        cat = st.selectbox("Kategori", CATEGORIES)
+        thumb = st.file_uploader("Thumbnail (JPG/PNG)", type=["jpg","jpeg","png"])
+        if file and title:
+            if st.button("SIMPAN", type="primary", use_container_width=True):
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                ext = Path(file.name).suffix
+                path = f"uploads/{ts}_{Path(file.name).stem}{ext}"
+                with open(path, "wb") as f:
+                    f.write(file.getvalue())
+                tpath = save_thumbnail_safely(thumb, "new")
+                content = extract_text(file)
+                conn = sqlite3.connect(DB_NAME)
+                conn.execute("INSERT INTO documents (title, content, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by) VALUES (?,?,?, ?,?,?,?,?)",
+                             (title, content, cat, file.name, path, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
+                conn.commit()
+                conn.close()
+                st.success("Berjaya disimpan!"); st.balloons()
 
     with tab2:
-        for doc in get_docs():
-            id_, title, cat, fname, fpath, thumb, date, uploader = doc
-            with st.expander(f"ID {id_} • {title} • {cat}"):
-                col1, col2 = st.columns([1,2])
+        for d in get_docs():
+            with st.expander(f"ID {d[0]} • {d[1]} • {d[2]}"):
+                col1, col2 = st.columns([1,3])
                 with col1:
-                    img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/300x420/4CAF50/white?text=FAMA"
+                    img = d[5] if d[5] and os.path.exists(d[5]) else "https://via.placeholder.com/300x420/4CAF50/white?text=FAMA"
                     st.image(img, width=250)
                 with col2:
-                    new_title = st.text_input("Tajuk", value=title, key=f"t{id_}")
-                    new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(cat), key=f"c{id_}")
-                    new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","jpeg","png"], key=f"th{id_}")
-                    new_file = st.file_uploader("Ganti Fail PDF/DOCX", type=["pdf","docx"], key=f"f{id_}")
-
+                    new_title = st.text_input("Tajuk", d[1], key=f"t{d[0]}")
+                    new_cat = st.selectbox("Kategori", CATEGORIES, CATEGORIES.index(d[2]), key=f"c{d[0]}")
+                    new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","jpeg","png"], key=f"th{d[0]}")
+                    new_file = st.file_uploader("Ganti Fail", type=["pdf","docx"], key=f"f{d[0]}")
                     c1, c2, c3 = st.columns(3)
                     with c1:
-                        if st.button("KEMASKINI", key=f"u{id_}"):
-                            final_fpath = fpath
-                            final_fname = fname
-                            final_content = None
+                        if st.button("KEMASKINI", key=f"u{d[0]}"):
+                            fp, fn, fc = d[4], d[3], None
                             if new_file:
                                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                                 ext = Path(new_file.name).suffix
-                                final_fname = new_file.name
-                                final_fpath = os.path.join("uploads", f"{ts}_update_{Path(new_file.name).stem}{ext}")
-                                with open(final_fpath, "wb") as f:
-                                    shutil.copyfileobj(new_file, f)
-                                final_content = extract_text(new_file)
-
-                            final_thumb = thumb
+                                fn = new_file.name
+                                fp = f"uploads/{ts}_update_{Path(new_file.name).stem}{ext}"
+                                with open(fp, "wb") as f: f.write(new_file.getvalue())
+                                fc = extract_text(new_file)
+                            tp = d[5]
                             if new_thumb:
-                                final_thumb = save_thumbnail_safely(new_thumb, prefix=f"edit_{id_}")
-
+                                tp = save_thumbnail_safely(new_thumb, f"edit_{d[0]}")
                             conn = sqlite3.connect(DB_NAME)
-                            conn.execute("""UPDATE documents 
-                                            SET title=?, category=?, file_name=?, file_path=?, thumbnail_path=?, content=?
-                                            WHERE id=?""",
-                                        (new_title, new_cat, final_fname, final_fpath, final_thumb, final_content, id_))
-                            conn.commit()
-                            conn.close()
-                            st.success("Berjaya dikemaskini!")
-                            st.rerun()
-
-                    with c2:
-                        st.download_button("QR Code", generate_qr(id_), f"QR_{id_}.png", "image/png", key=f"qr{id_}")
-
-                    with c3:
-                        if st.button("PADAM", key=f"d{id_}"):
-                            if st.session_state.get(f"confirm{id_}"):
-                                if os.path.exists(fpath): os.remove(fpath)
-                                if thumb and os.path.exists(thumb): os.remove(thumb)
-                                conn = sqlite3.connect(DB_NAME)
-                                conn.execute("DELETE FROM documents WHERE id=?", (id_,))
-                                conn.commit()
-                                conn.close()
-                                st.success("Standard dipadam!")
-                                st.rerun()
+                            if fc:
+                                conn.execute("UPDATE documents SET title=?, category=?, file_name=?, file_path=?, thumbnail_path=?, content=? WHERE id=?", 
+                                             (new_title, new_cat, fn, fp, tp, fc, d[0]))
                             else:
-                                st.session_state[f"confirm{id_}"] = True
-                                st.warning("Klik sekali lagi untuk sahkan")
+                                conn.execute("UPDATE documents SET title=?, category=?, file_name=?, file_path=?, thumbnail_path=? WHERE id=?", 
+                                             (new_title, new_cat, fn, fp, tp, d[0]))
+                            conn.commit(); conn.close()
+                            st.success("Dikemaskini!"); st.rerun()
+                    with c2:
+                        st.download_button("QR", generate_qr(d[0]), f"QR_{d[0]}.png", "image/png", key=f"qr{d[0]}")
+                    with c3:
+                        if st.button("PADAM", key=f"del{d[0]}"):
+                            if st.button("SAHKAN PADAM", type="primary", key=f"confirm{d[0]}"):
+                                if os.path.exists(d[4]): os.remove(d[4])
+                                if d[5] and os.path.exists(d[5]): os.remove(d[5])
+                                conn = sqlite3.connect(DB_NAME)
+                                conn.execute("DELETE FROM documents WHERE id=?", (d[0],))
+                                conn.commit(); conn.close()
+                                st.success("Dipadam!"); st.rerun()
+
+    # PENGURUSAN DATABASE — HANYA SUPERADMIN & 100% BERFUNGSI
+    if st.session_state.is_superadmin and extra:
+        with extra[0]:
+            st.markdown("### SUPERADMIN: Pengurusan Database")
+            st.error("HANYA SUPERADMIN BOLEH GUNA FUNGSI INI!")
+
+            c1, c2, c3 = st.columns(3)
+
+            with c1:
+                if os.path.exists(DB_NAME):
+                    with open(DB_NAME, "rb") as f:
+                        st.download_button(
+                            label="DOWNLOAD DATABASE (.db)",
+                            data=f.read(),
+                            file_name=f"fama_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
+                            mime="application/octet-stream"
+                        )
+
+            with c2:
+                uploaded = st.file_uploader("Upload Database Baru (.db)", type=["db"])
+                if uploaded and st.button("GANTI DATABASE", type="secondary"):
+                    if st.checkbox("Saya faham semua data akan diganti"):
+                        # Backup dulu
+                        backup_path = f"backups/backup_before_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+                        shutil.copy(DB_NAME, backup_path)
+                        # Ganti database
+                        with open(DB_NAME, "wb") as f:
+                            f.write(uploaded.getvalue())
+                        st.success(f"Database diganti! Backup disimpan: {os.path.basename(backup_path)}")
+                        st.balloons()
+                        st.experimental_rerun()
+
+            with c3:
+                if st.button("RESET SEMUA DATA", type="secondary"):
+                    if st.checkbox("Saya pasti nak padam SEMUA standard, fail & thumbnail"):
+                        if st.button("SAHKAN RESET", type="primary"):
+                            # Padam database & folder
+                            if os.path.exists(DB_NAME): os.remove(DB_NAME)
+                            for folder in ["uploads", "thumbnails"]:
+                                if os.path.exists(folder):
+                                    shutil.rmtree(folder)
+                                    os.makedirs(folder)
+                            st.success("SEMUA DATA TELAH DIPADAM! Sistem akan restart...")
+                            st.balloons()
+                            st.experimental_rerun()
 
     if st.button("Log Keluar"):
-        st.session_state.admin_logged_in = False
+        for k in ["admin_logged_in", "user", "is_superadmin"]:
+            st.session_state.pop(k, None)
         st.rerun()
