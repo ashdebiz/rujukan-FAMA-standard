@@ -30,25 +30,21 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Pastikan folder wujud
+# Folder
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("thumbnails", exist_ok=True)
-os.makedirs("backups", exist_ok=True)
 
 DB_NAME = "fama_standards.db"
 CATEGORIES = ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"]
 
-# =============================================
-# SENARAI ADMIN + SUPERADMIN (super1234)
-# =============================================
-USERS = {
-    "admin":      hashlib.sha256("fama2025".encode()).hexdigest(),
-    "pengarah":   hashlib.sha256("fama123".encode()).hexdigest(),
-    "superadmin": hashlib.sha256("super1234".encode()).hexdigest()  # SUPERADMIN
+# Admin biasa je
+ADMIN_CREDENTIALS = {
+    "admin": hashlib.sha256("fama2025".encode()).hexdigest(),
+    "pengarah": hashlib.sha256("fama123".encode()).hexdigest()
 }
 
 # =============================================
-# INIT DATABASE + AUTO UPGRADE
+# INIT DATABASE
 # =============================================
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -72,14 +68,12 @@ def init_db():
             password_hash TEXT NOT NULL
         )
     ''')
-    # Auto tambah column content kalau tak wujud
     try:
         cur.execute("SELECT content FROM documents LIMIT 1")
     except sqlite3.OperationalError:
         cur.execute("ALTER TABLE documents ADD COLUMN content TEXT")
-    # Tambah semua user termasuk superadmin
-    for username, hash_pw in USERS.items():
-        cur.execute("INSERT OR IGNORE INTO admins VALUES (?, ?)", (username, hash_pw))
+    for u, h in ADMIN_CREDENTIALS.items():
+        cur.execute("INSERT OR IGNORE INTO admins VALUES (?, ?)", (u, h))
     conn.commit()
     conn.close()
 
@@ -92,27 +86,22 @@ def save_thumbnail_safely(uploaded_file, prefix="thumb"):
     if not uploaded_file:
         return None
     try:
-        data = uploaded_file.getvalue()
-        if len(data) > 5_000_000:
-            st.warning("Gambar terlalu besar (max 5MB)")
-            return None
-        img = Image.open(io.BytesIO(data))
+        img = Image.open(io.BytesIO(uploaded_file.getvalue()))
         if img.format not in ["JPEG", "JPG", "PNG", "WEBP"]:
-            st.warning("Format tidak disokong. Guna JPG/PNG.")
+            st.warning("Guna JPG/PNG sahaja")
             return None
-        if img.mode in ("RGBA", "P", "LA"):
+        if img.mode != "RGB":
             img = img.convert("RGB")
         img.thumbnail((350, 500), Image.Resampling.LANCZOS)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        path = os.path.join("thumbnails", f"{prefix}_{ts}.jpg")
-        img.save(path, "JPEG", quality=90, optimize=True)
+        path = f"thumbnails/{prefix}_{ts}.jpg"
+        img.save(path, "JPEG", quality=90)
         return path
-    except Exception as e:
-        st.error(f"Gagal proses gambar: {e}")
+    except:
         return None
 
 # =============================================
-# FUNGSI UTAMA
+# FUNGSI LAIN
 # =============================================
 def extract_text(file):
     if not file: return ""
@@ -128,14 +117,11 @@ def extract_text(file):
 def generate_qr(id_):
     url = f"https://rujukan-fama-standard.streamlit.app/?doc={id_}"
     qr = qrcode.QRCode(box_size=15, border=8)
-    qr.add_data(url)
-    qr.make(fit=True)
+    qr.add_data(url); qr.make(fit=True)
     img = qr.make_image(fill_color="#1B5E20", back_color="white")
-    buf = io.BytesIO()
-    img.save(buf, "PNG")
+    buf = io.BytesIO(); img.save(buf, "PNG")
     return buf.getvalue()
 
-# TIADA CACHE — INI YANG BUAT RESET 100% BERSIH!
 def get_docs():
     if not os.path.exists(DB_NAME):
         return []
@@ -145,34 +131,37 @@ def get_docs():
     cur.execute("SELECT * FROM documents ORDER BY upload_date DESC")
     rows = cur.fetchall()
     conn.close()
-    return [dict(row) for row in rows]  # Return list of dict — selamat dari error unpacking!
+    return [dict(row) for row in rows]
 
+# =============================================
+# STATISTIK CANTIK
+# =============================================
 def show_stats():
     docs = get_docs()
     total = len(docs)
     baru = len([d for d in docs if d['upload_date'][:10] >= (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")]) if docs else 0
     latest = max((d['upload_date'][:10] for d in docs), default="Belum ada") if docs else "Belum ada"
-    cat_count = {cat: sum(1 for d in docs if d['category'] == cat) for cat in CATEGORIES}
-    
+    cat_count = {c: sum(1 for d in docs if d['category'] == c) for c in CATEGORIES}
+
     st.markdown(f"""
-    <div style="background:linear-gradient(135deg,#1B5E20,#4CAF50); border-radius:25px; padding:25px; box-shadow:0 15px 40px rgba(27,94,32,0.4); margin:20px 0; color:white;">
-        <h2 style="text-align:center; margin:0 0 20px 0; font-size:2.3rem;">STATISTIK RUJUKAN STANDARD FAMA</h2>
+    <div style="background:linear-gradient(135deg,#1B5E20,#4CAF50); border-radius:25px; padding:25px; box-shadow:0 15px 40px rgba(27,94,32,0.4); color:white;">
+        <h2 style="text-align:center; margin:0 0 20px;">STATISTIK RUJUKAN STANDARD FAMA</h2>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; text-align:center;">
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:3rem; color:#e8f5e8;">{total}</h1>
-                <p style="margin:5px 0 0;">JUMLAH STANDARD</p>
+                <h1 style="margin:0; font-size:3rem;">{total}</h1>
+                <p>JUMLAH STANDARD</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:3rem; color:#b9f6ca;">{baru}</h1>
-                <p style="margin:5px 0 0;">BARU (30 HARI)</p>
+                <h1 style="margin:0; font-size:3rem;">{baru}</h1>
+                <p>BARU (30 HARI)</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:2.2rem; color:#c8e6c9;">{latest}</h1>
-                <p style="margin:5px 0 0;">TERKINI</p>
+                <h1 style="margin:0; font-size:2rem;">{latest}</h1>
+                <p>TERKINI</p>
             </div>
         </div>
-        <div style="margin-top:25px; display:grid; grid-template-columns: repeat(4, 1fr); gap:15px;">
-            {''.join(f'<div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:12px;"><strong>{}</strong><br>{}</div>'.format(cat, cat_count[cat]) for cat in CATEGORIES)}
+        <div style="margin-top:25px; display:grid; grid-template-columns: repeat(4,1fr); gap:15px;">
+            {''.join(f'<div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:12px;"><strong>{c}</strong><br>{cat_count[c]}</div>' for c in CATEGORIES)}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -181,13 +170,9 @@ def show_stats():
 # SIDEBAR
 # =============================================
 with st.sidebar:
-    st.markdown("""
-    <div style="text-align: center; padding: 30px 0;">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
-        <h3 style="color:white; margin:15px 0 5px 0; font-weight: bold;">FAMA STANDARD</h3>
-        <p style="color:#c8e6c9; margin:0;">Sistem Digital Rasmi • 2025</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
+    st.markdown("<h3 style='color:white; text-align:center;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#c8e6c9; text-align:center;'>Sistem Digital Rasmi</p>", unsafe_allow_html=True)
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
 
@@ -203,7 +188,7 @@ if page == "Halaman Utama":
             <h1 style="color:white; font-size:3.3rem; font-weight:900; margin:0; text-shadow: 4px 4px 15px black;">
                 RUJUKAN STANDARD FAMA
             </h1>
-            <p style="color:#e8f5e8; font-size:1.5rem; margin:20px 0 0;">Sistem Digital Rasmi • 2025</p>
+            <p style="color:#e8f5e8; font-size:1.5rem; margin:20px 0 0;">Sistem Digital Rasmi • Jabatan Pertanian Malaysia</p>
         </div>
     </div>
     ''', unsafe_allow_html=True)
@@ -215,7 +200,7 @@ if page == "Halaman Utama":
     
     docs = get_docs()
     hasil = [d for d in docs if (kat == "Semua" or d['category'] == kat) and (not cari or cari.lower() in d['title'].lower())]
-    st.markdown(f"<h3 style='color:#1B5E20;'>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
 
     for d in hasil:
         with st.container():
@@ -240,14 +225,15 @@ elif page == "Papar QR Code":
     show_stats()
     search = st.text_input("", placeholder="Taip nama standard...").strip()
     if not search:
-        st.info("Taip untuk cari QR Code")
+        st.info("Taip nama standard untuk papar QR Code")
         st.stop()
     
     matches = [d for d in get_docs() if search.lower() in d['title'].lower() or search.lower() in d['category'].lower()]
     if not matches:
-        st.warning("Tiada padanan")
+        st.warning("Tiada padanan ditemui")
         st.stop()
-
+    
+    st.success(f"Ditemui {len(matches)} standard")
     if len(matches) == 1:
         d = matches[0]
         qr = base64.b64encode(generate_qr(d['id'])).decode()
@@ -256,7 +242,6 @@ elif page == "Papar QR Code":
             <h2 class="qr-title">{d['title']}</h2>
             <p class="qr-cat">{d['category']}</p>
             <img src="data:image/png;base64,{qr}" width="420">
-            <p style="margin:30px 0 10px;"><strong>Scan untuk muat turun</strong></p>
         </div>
         """, unsafe_allow_html=True)
         c1, c2 = st.columns(2)
@@ -272,7 +257,7 @@ elif page == "Papar QR Code":
                 qr = base64.b64encode(generate_qr(d['id'])).decode()
                 st.markdown(f"""
                 <div style="background:white; border-radius:25px; padding:20px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.1); border:3px solid #4CAF50; margin:15px 0;">
-                    <p style="font-weight:bold; color:#1B5E20;">{d['title'][:40]}...</p>
+                    <p style="font-weight:bold; color:#1B5E20;">{d['title'][:40]}{'...' if len(d['title'])>40 else ''}</p>
                     <p style="color:#4CAF50;"><strong>{d['category']}</strong></p>
                     <img src="data:image/png;base64,{qr}" width="180">
                     <p><small>ID: {d['id']}</small></p>
@@ -280,10 +265,9 @@ elif page == "Papar QR Code":
                 """, unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL + SUPERADMIN RESET
+# ADMIN PANEL (tambah + edit + padam sahaja)
 # =============================================
 else:
-    # Login
     if not st.session_state.get("logged_in"):
         st.markdown("<h1 style='text-align:center; color:#1B5E20;'>ADMIN PANEL</h1>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
@@ -291,25 +275,20 @@ else:
         with c2: password = st.text_input("Kata Laluan", type="password")
         if st.button("LOG MASUK", type="primary"):
             h = hashlib.sha256(password.encode()).hexdigest()
-            if username in USERS and USERS[username] == h:
+            if username in ADMIN_CREDENTIALS and ADMIN_CREDENTIALS[username] == h:
                 st.session_state.logged_in = True
                 st.session_state.user = username
-                st.session_state.is_superadmin = (username == "superadmin")
                 st.rerun()
             else:
-                st.error("Salah!")
+                st.error("Salah username/kata laluan")
         st.stop()
 
-    st.success(f"Selamat Datang, {st.session_state.user.upper()} {'(SUPERADMIN)' if st.session_state.is_superadmin else ''}")
+    st.success(f"Selamat Datang, {st.session_state.user.upper()}")
 
-    tabs = ["Tambah Standard", "Senarai & Edit"]
-    if st.session_state.is_superadmin:
-        tabs.append("SUPERADMIN - Database")
-    tab1, tab2, *extra = st.tabs(tabs)
+    tab1, tab2 = st.tabs(["Tambah Standard", "Senarai & Edit"])
 
     with tab1:
-        st.markdown("### Tambah Standard Baru")
-        file = st.file_uploader("Fail PDF/DOCX", type=["pdf","docx"])
+        file = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
         title = st.text_input("Tajuk Standard")
         cat = st.selectbox("Kategori", CATEGORIES)
         thumb = st.file_uploader("Thumbnail (pilihan)", type=["jpg","jpeg","png"])
@@ -330,7 +309,7 @@ else:
     with tab2:
         for d in get_docs():
             with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
-                col1, col2 = st.columns([1,2])
+                col1, col2 = st.columns([1,3])
                 with col1:
                     img = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/300x420/4CAF50/white?text=FAMA"
                     st.image(img, width=250)
@@ -350,39 +329,8 @@ else:
                             conn = sqlite3.connect(DB_NAME)
                             conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
                             conn.commit(); conn.close()
-                            st.rerun()
-
-    # SUPERADMIN TAB — RESET TOTAL!
-    if st.session_state.is_superadmin and extra:
-        with extra[0]:
-            st.error("SUPERADMIN SAHAJA!")
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                if os.path.exists(DB_NAME):
-                    with open(DB_NAME, "rb") as f:
-                        st.download_button("DOWNLOAD DB", f.read(), f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}.db")
-            with c2:
-                uploaded = st.file_uploader("Upload DB baru", type=["db"])
-                if uploaded and st.button("GANTI DB"):
-                    shutil.copy(DB_NAME, f"backups/backup_{datetime.now().strftime('%Y%m%d_%H%M')}.db")
-                    with open(DB_NAME, "wb") as f: f.write(uploaded.getvalue())
-                    st.success("DB diganti!"); st.rerun()
-            with c3:
-                st.markdown("### RESET TOTAL")
-                if st.button("PADAM SEMUA DATA", type="secondary"):
-                    if st.checkbox("Saya faham semua data akan hilang"):
-                        if st.button("YA, RESET SEKARANG!", type="primary"):
-                            with st.spinner("Memadam..."):
-                                if os.path.exists(DB_NAME): os.remove(DB_NAME)
-                                for folder in ["uploads", "thumbnails"]:
-                                    if os.path.exists(folder): shutil.rmtree(folder)
-                                    os.makedirs(folder)
-                                init_db()
-                                st.success("RESET BERJAYA! Sistem bersih 100%")
-                                st.balloons()
-                                st.rerun()
+                            st.success("Dipadam!"); st.rerun()
 
     if st.button("Log Keluar"):
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
+        st.session_state.clear()
         st.rerun()
