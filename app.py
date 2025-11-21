@@ -2,7 +2,7 @@ import streamlit as st
 import sqlite3
 import os
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import PyPDF2
 from docx import Document
@@ -31,8 +31,8 @@ st.markdown("""
         background: white; border-radius: 30px; padding: 40px; text-align: center;
         box-shadow: 0 20px 50px rgba(27,94,32,0.2); border: 4px solid #4CAF50; margin: 30px 0;
     }
-    .qr-title {color: #1B5E20; font-size: 2.2rem; font-weight: 900; margin: 0 0 10px 0;}
-    .qr-cat {color: #4CAF50; font-weight: bold; font-size: 1.3rem; margin: 10px 0;}
+    .qr-title {color: #1B5E20; font-size: 2.3rem; font-weight: 900; margin: 10px 0;}
+    .qr-cat {color: #4CAF50; font-weight: bold; font-size: 1.4rem; margin: 10px 0;}
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 55px; border: none;}
     h1,h2,h3 {color: #1B5E20;}
 </style>
@@ -98,53 +98,30 @@ def generate_qr(id_):
 
 def get_docs():
     conn = sqlite3.connect(DB_NAME)
-    cur = conn.execute("SELECT id, title, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by FROM documents ORDER BY title ASC")
+    cur = conn.execute("SELECT id, title, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by FROM documents ORDER BY upload_date DESC")
     docs = cur.fetchall()
     conn.close()
     return docs
 
 # =============================================
-# SIDEBAR — DENGAN HALAMAN QR CODE!
-# =============================================
-with st.sidebar:
-    st.markdown("""
-    <div style="text-align: center; padding: 30px 0;">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
-        <h3 style="color:white; margin:15px 0 5px 0; font-weight: bold;">FAMA STANDARD</h3>
-        <p style="color:#c8e6c9; margin:0; font-size:0.95rem;">Bahagian Regulasi Pasaran</p>
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown("---")
-    page = st.selectbox("Menu", [
-        "Halaman Utama",
-        "Papar QR Code",      # HALAMAN BARU!
-        "Admin Panel"
-    ], label_visibility="collapsed")
-
-# =============================================
-# STATISTIK CANTIK — LETAK DI ATAS HALAMAN UTAMA & PAPAR QR
+# STATISTIK CANTIK (BARU!)
 # =============================================
 def show_stats():
     docs = get_docs()
     total = len(docs)
-    
-    # Standard baru (30 hari terakhir)
-    from datetime import datetime, timedelta
     thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
-    baru = len([d for d in docs if d[6] >= thirty_days_ago])  # d[6] = upload_date
+    baru = len([d for d in docs if d[6] >= thirty_days_ago]) if docs else 0
+    latest = max((d[6][:10] for d in docs), default="Belum ada") if docs else "Belum ada"
     
-    # Kategori count
     cat_count = {"Keratan Bunga": 0, "Sayur-sayuran": 0, "Buah-buahan": 0, "Lain-lain": 0}
     for d in docs:
-        cat_count[d[2]] += 1
-    
-    # Tarikh terkini
-    latest = max((d[6] for d in docs), default="Belum ada")[:10] if docs else "Belum ada"
+        if d[2] in cat_count:
+            cat_count[d[2]] += 1
 
     st.markdown(f"""
     <div style="background:linear-gradient(135deg,#1B5E20,#4CAF50); border-radius:25px; padding:25px; 
                 box-shadow:0 15px 40px rgba(27,94,32,0.4); margin:20px 0; color:white;">
-        <h2 style="text-align:center; margin:0 0 20px 0; font-size:2.3rem;">STATISTIK RUJUKAN STANDARD FAMA</h2>
+        <h2 style="text-align:center; margin:0 0 20px 0; font-size:2.3rem;">STATISTIK RUJUKAN FAMA STANDARD</h2>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; text-align:center;">
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
                 <h1 style="margin:0; font-size:3rem; color:#e8f5e8;">{total}</h1>
@@ -175,7 +152,21 @@ def show_stats():
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
+
+# =============================================
+# SIDEBAR
+# =============================================
+with st.sidebar:
+    st.markdown("""
+    <div style="text-align: center; padding: 30px 0;">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
+        <h3 style="color:white; margin:15px 0 5px 0; font-weight: bold;">FAMA STANDARD</h3>
+        <p style="color:#c8e6c9; margin:0; font-size:0.95rem;">Bahagian Regulasi Pasaran</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("---")
+    page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
+
 # =============================================
 # HALAMAN UTAMA
 # =============================================
@@ -195,6 +186,8 @@ if page == "Halaman Utama":
     </div>
     ''', unsafe_allow_html=True)
 
+    show_stats()  # STATISTIK CANTIK
+
     col1, col2 = st.columns([3,1])
     with col1: cari = st.text_input("", placeholder="Cari tajuk standard...")
     with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES)
@@ -202,7 +195,7 @@ if page == "Halaman Utama":
     docs = get_docs()
     hasil = [d for d in docs if (kat == "Semua" or d[2] == kat) and (not cari or cari.lower() in d[1].lower())]
 
-    st.markdown(f"<h3 style='color:#1B5E20; text-align:center;'>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='color:#1B5E20;'>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
 
     for d in hasil:
         id_, title, cat, fname, fpath, thumb, date, uploader = d
@@ -221,136 +214,94 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# PAPAR QR CODE — CARI LANGSUNG + SETIAP QR 100% UNIK MENGIKUT ID!
+# PAPAR QR CODE — CARI LANGSUNG + STATISTIK
 # =============================================
 elif page == "Papar QR Code":
     st.markdown(f'''
     <div style="text-align:center; padding:30px; background:linear-gradient(135deg,#1B5E20,#4CAF50); 
                 border-radius:25px; margin:20px 0; box-shadow:0 15px 40px rgba(27,94,32,0.5);">
         <h1 style="color:white; margin:0; font-size:2.8rem;">CARI & PAPAR QR CODE</h1>
-        <p style="color:#c8e6c9; margin:10px 0 0; font-size:1.2rem;">
-            Taip nama standard, buah, sayur atau bunga...
-        </p>
+        <p style="color:#c8e6c9; margin:10px 0 0; font-size:1.2rem;">Taip nama standard untuk papar QR</p>
     </div>
     ''', unsafe_allow_html=True)
+
+    show_stats()  # STATISTIK SINI JUGA
 
     docs = get_docs()
     if not docs:
         st.info("Belum ada standard. Sila tambah di Admin Panel.")
         st.stop()
 
-    # Kotak carian besar
-    search = st.text_input(
-        "",
-        placeholder="Contoh: timun, tomato, ros, durian, standard sayur, bunga...",
-        label_visibility="collapsed"
-    ).strip()
+    search = st.text_input("", placeholder="Contoh: timun, durian, ros, standard sayur...", label_visibility="collapsed").strip()
 
     if not search:
         st.info("Taip nama standard untuk papar QR Code")
         st.stop()
 
-    # Cari padanan (tajuk atau kategori)
-    matches = [
-        d for d in docs
-        if search.lower() in d[1].lower() or search.lower() in d[2].lower()
-    ]
+    matches = [d for d in docs if search.lower() in d[1].lower() or search.lower() in d[2].lower()]
 
     if not matches:
-        st.warning(f"Tiada standard ditemui untuk kata kunci: \"{search}\"")
+        st.warning(f"Tiada standard ditemui untuk \"{search}\"")
         st.stop()
 
-    st.success(f"Ditemui {len(matches)} standard yang padan dengan \"{search}\"")
+    st.success(f"Ditemui {len(matches)} standard")
 
-    # Jika hanya 1 padanan → papar besar tengah-tengah
     if len(matches) == 1:
         doc = matches[0]
         id_, title, cat, fname, fpath, thumb, date, uploader = doc
-
-        # Pastikan QR dijana dari ID unik!
-        qr_data = generate_qr(id_)
-        qr_b64 = base64.b64encode(qr_data).decode()
+        qr_b64 = base64.b64encode(generate_qr(id_)).decode()
 
         st.markdown(f"""
         <div class="qr-container">
             <h2 class="qr-title">{title}</h2>
             <p class="qr-cat">{cat}</p>
-            <img src="data:image/png;base64,{qr_b64}" width="450">
-            <div style="margin-top:30px; padding:15px; background:#f0f8f0; border-radius:15px;">
-                <p style="margin:10px 0; font-size:1.4rem; color:#1B5E20;">
-                    <strong>Scan QR Code ini → terus muat turun standard</strong>
-                </p>
-                <p style="margin:5px 0; color:#2E7D32;">
-                    ID Standard: <strong>{id_}</strong> • Dimuatnaik: <strong>{date[:10]}</strong> oleh <strong>{uploader}</strong>
-                </p>
-            </div>
+            <img src="data:image/png;base64,{qr_b64}" width="420">
+            <p style="margin:30px 0 10px; font-size:1.4rem; color:#333;"><strong>Scan untuk muat turun</strong></p>
+            <p style="color:#666;">ID: {id_} • {date[:10]} • {uploader}</p>
         </div>
         """, unsafe_allow_html=True)
 
         c1, c2 = st.columns(2)
         with c1:
-            st.download_button(
-                "MUAT TURUN QR CODE (PNG)",
-                data=qr_data,
-                file_name=f"QR_FAMA_ID{id_}_{title.replace(' ', '_')[:40]}.png",
-                mime="image/png",
-                use_container_width=True
-            )
+            st.download_button("MUAT TURUN QR", generate_qr(id_), f"QR_ID{id_}_{title[:30]}.png", "image/png", use_container_width=True)
         with c2:
             if os.path.exists(fpath):
                 with open(fpath, "rb") as f:
-                    st.download_button(
-                        "MUAT TURUN FAIL STANDARD",
-                        data=f.read(),
-                        file_name=fname,
-                        mime="application/octet-stream",
-                        use_container_width=True
-                    )
-
-    # Jika lebih dari 1 → grid cantik (setiap QR unik!)
+                    st.download_button("MUAT TURUN FAIL", f.read(), fname, use_container_width=True)
     else:
-        st.markdown("<h3 style='text-align:center; color:#1B5E20; margin-top:30px;'>Semua Standard yang Padan:</h3>", unsafe_allow_html=True)
-        
         cols = st.columns(3)
-        for idx, doc in enumerate(matches):
+        for i, doc in enumerate(matches):
             id_, title, cat, fname, fpath, thumb, date, uploader = doc
+            qr_b64 = base64.b64encode(generate_qr(id_)).decode()
 
-            # QR Code dijana dari ID unik → 100% berbeza!
-            qr_data = generate_qr(id_)
-            qr_b64 = base64.b64encode(qr_data).decode()
-
-            with cols[idx % 3]:
+            with cols[i % 3]:
                 st.markdown(f"""
                 <div style="background:white; border-radius:25px; padding:20px; text-align:center; 
                             box-shadow:0 15px 40px rgba(27,94,32,0.15); border:4px solid #4CAF50; margin:20px 0;">
-                    <p style="font-weight:bold; color:#1B5E20; margin:8px 0 12px; font-size:1.1rem; line-height:1.3;">
-                        {title[:50]}{'...' if len(title)>50 else ''}
+                    <p style="font-weight:bold; color:#1B5E20; margin:8px 0 12px; font-size:1.1rem;">
+                        {title[:45]}{'...' if len(title)>45 else ''}
                     </p>
                     <p style="color:#4CAF50; font-weight:bold; margin:5px 0 15px;">{cat}</p>
-                    <img src="data:image/png;base64,{qr_b64}" width="200" style="border-radius:15px;">
-                    <p style="margin:15px 0 8px; color:#333; font-size:0.95rem;">
-                        <strong>ID: {id_}</strong>
-                    </p>
-                    <p style="color:#666; font-size:0.8rem; margin:5px 0;">
-                        {uploader} • {date[:10]}
-                    </p>
-                    <div style="margin-top:15px;">
-                        <a href="?doc={id_}" target="_blank">
-                            <button style="background:#4CAF50; color:white; border:none; padding:10px 18px; 
-                                           border-radius:12px; font-weight:bold; cursor:pointer;">
-                                Buka Standard
-                            </button>
-                        </a>
-                    </div>
+                    <img src="data:image/png;base64,{qr_b64}" width="200">
+                    <p style="margin:15px 0 8px; color:#333; font-size:0.95rem;"><strong>ID: {id_}</strong></p>
+                    <p style="color:#666; font-size:0.8rem; margin:5px 0;">{uploader}</p>
+                    <a href="?doc={id_}" target="_blank">
+                        <button style="background:#4CAF50; color:white; border:none; padding:10px 18px; 
+                                       border-radius:12px; font-weight:bold; cursor:pointer;">
+                            Buka Standard
+                        </button>
+                    </a>
                 </div>
                 """, unsafe_allow_html=True)
+
 # =============================================
-# ADMIN PANEL (sama macam sebelum ni — 100% stabil)
+# ADMIN PANEL (100% STABIL)
 # =============================================
-else:  # Admin Panel
+else:
     if not st.session_state.get("admin_logged_in", False):
         st.markdown(f'''
-        <div style="text-align:center; padding:2rem; background:linear-gradient(135deg,#1B5E20,#4CAF50); border-radius:25px; margin:20px 0;">
+        <div style="text-align:center; padding:2rem; background:linear-gradient(135deg,#1B5E20,#4CAF50); 
+                    border-radius:25px; box-shadow:0 10px 10px rgba(27,94,32,0.5); margin:20px 0;">
             <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
             <h1 style="color:white; margin:15px 0 0;">ADMIN PANEL</h1>
         </div>
@@ -372,99 +323,95 @@ else:  # Admin Panel
         st.stop()
 
     st.markdown(f"<h1 style='text-align:center; color:#1B5E20;'>Selamat Datang, {st.session_state.user.upper()}!</h1>", unsafe_allow_html=True)
+    st.markdown("### Tambah Standard Baru")
+    uploaded_file = st.file_uploader("Pilih fail PDF/DOCX", type=["pdf","docx"])
+    title = st.text_input("Tajuk Standard")
+    category = st.selectbox("Kategori", CATEGORIES)
+    thumbnail = st.file_uploader("Thumbnail (Pilihan)", type=["jpg","jpeg","png"])
 
-    tab1, tab2 = st.tabs(["Tambah Standard", "Senarai & Edit"])
+    if uploaded_file and title:
+        if st.button("SIMPAN STANDARD", type="primary", use_container_width=True):
+            with st.spinner("Sedang simpan..."):
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                ext = Path(uploaded_file.name).suffix
+                new_name = f"{ts}_{Path(uploaded_file.name).stem}{ext}"
+                file_path = os.path.join("uploads", new_name)
+                with open(file_path, "wb") as f:
+                    shutil.copyfileobj(uploaded_file, f)
 
-    with tab1:
-        st.markdown("### Tambah Standard Baru")
-        uploaded_file = st.file_uploader("Pilih fail PDF/DOCX", type=["pdf","docx"])
-        title = st.text_input("Tajuk Standard")
-        category = st.selectbox("Kategori", CATEGORIES)
-        thumbnail = st.file_uploader("Thumbnail (Pilihan)", type=["jpg","jpeg","png"])
+                thumb_path = None
+                if thumbnail:
+                    try:
+                        thumb_path = os.path.join("thumbnails", f"thumb_{ts}.jpg")
+                        Image.open(thumbnail).convert("RGB").thumbnail((350,500)).save(thumb_path, "JPEG", quality=95)
+                    except: pass
 
-        if uploaded_file and title:
-            if st.button("SIMPAN STANDARD", type="primary", use_container_width=True):
-                with st.spinner("Sedang simpan..."):
-                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    ext = Path(uploaded_file.name).suffix
-                    new_name = f"{ts}_{Path(uploaded_file.name).stem}{ext}"
-                    file_path = os.path.join("uploads", new_name)
-                    with open(file_path, "wb") as f:
-                        shutil.copyfileobj(uploaded_file, f)
+                content = extract_text(uploaded_file)
+                conn = sqlite3.connect(DB_NAME)
+                conn.execute("INSERT INTO documents VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (title, content, category, uploaded_file.name, file_path, thumb_path,
+                     datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
+                conn.commit()
+                conn.close()
+                st.success("BERJAYA DISIMPAN!")
+                st.balloons()
 
-                    thumb_path = None
-                    if thumbnail:
-                        try:
-                            thumb_path = os.path.join("thumbnails", f"thumb_{ts}.jpg")
-                            Image.open(thumbnail).convert("RGB").thumbnail((350,500)).save(thumb_path, "JPEG", quality=95)
-                        except: pass
+    st.markdown("### Senarai & Edit")
+    for doc in get_docs():
+        id_, title, cat, fname, fpath, thumb, date, uploader = doc
+        with st.expander(f"ID {id_} • {title} • {cat}"):
+            col1, col2 = st.columns([1,2])
+            with col1:
+                img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/300x420.png?text=FAMA"
+                st.image(img, width=250)
+            with col2:
+                new_title = st.text_input("Tajuk", value=title, key=f"t{id_}")
+                new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(cat), key=f"c{id_}")
+                new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","jpeg","png"], key=f"th{id_}")
+                new_file = st.file_uploader("Ganti Fail", type=["pdf","docx"], key=f"f{id_}")
 
-                    content = extract_text(uploaded_file)
-                    conn = sqlite3.connect(DB_NAME)
-                    conn.execute("INSERT INTO documents VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (title, content, category, uploaded_file.name, file_path, thumb_path,
-                         datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
-                    conn.commit()
-                    conn.close()
-                    st.success("BERJAYA DISIMPAN!")
-                    st.balloons()
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    if st.button("KEMASKINI", key=f"u{id_}"):
+                        final_fpath = fpath
+                        final_fname = fname
+                        if new_file:
+                            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            ext = Path(new_file.name).suffix
+                            final_fname = new_file.name
+                            final_fpath = os.path.join("uploads", f"{ts}_update_{Path(new_file.name).stem}{ext}")
+                            with open(final_fpath, "wb") as f:
+                                shutil.copyfileobj(new_file, f)
+                        final_thumb = thumb
+                        if new_thumb:
+                            final_thumb = os.path.join("thumbnails", f"thumb_edit_{id_}.jpg")
+                            Image.open(new_thumb).convert("RGB").thumbnail((350,500)).save(final_thumb, "JPEG", quality=95)
 
-    with tab2:
-        for doc in get_docs():
-            id_, title, cat, fname, fpath, thumb, date, uploader = doc
-            with st.expander(f"ID {id_} • {title} • {cat}"):
-                col1, col2 = st.columns([1,2])
-                with col1:
-                    img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/300x420.png?text=FAMA"
-                    st.image(img, width=250)
-                with col2:
-                    new_title = st.text_input("Tajuk", value=title, key=f"t{id_}")
-                    new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(cat), key=f"c{id_}")
-                    new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","jpeg","png"], key=f"th{id_}")
-                    new_file = st.file_uploader("Ganti Fail", type=["pdf","docx"], key=f"f{id_}")
+                        conn = sqlite3.connect(DB_NAME)
+                        conn.execute("UPDATE documents SET title=?, category=?, file_name=?, file_path=?, thumbnail_path=? WHERE id=?",
+                                    (new_title, new_cat, final_fname, final_fpath, final_thumb, id_))
+                        conn.commit()
+                        conn.close()
+                        st.success("Kemaskini berjaya!")
+                        st.rerun()
 
-                    c1, c2, c3 = st.columns(3)
-                    with c1:
-                        if st.button("KEMASKINI", key=f"u{id_}"):
-                            final_fpath = fpath
-                            final_fname = fname
-                            if new_file:
-                                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                ext = Path(new_file.name).suffix
-                                final_fname = new_file.name
-                                final_fpath = os.path.join("uploads", f"{ts}_update_{Path(new_file.name).stem}{ext}")
-                                with open(final_fpath, "wb") as f:
-                                    shutil.copyfileobj(new_file, f)
-                            final_thumb = thumb
-                            if new_thumb:
-                                final_thumb = os.path.join("thumbnails", f"thumb_edit_{id_}.jpg")
-                                Image.open(new_thumb).convert("RGB").thumbnail((350,500)).save(final_thumb, "JPEG", quality=95)
+                with c2:
+                    st.download_button("QR Code", generate_qr(id_), f"QR_{id_}.png", "image/png", key=f"qr{id_}")
 
+                with c3:
+                    if st.button("PADAM", key=f"d{id_}"):
+                        if st.session_state.get(f"confirm{id_}"):
+                            if os.path.exists(fpath): os.remove(fpath)
+                            if thumb and os.path.exists(thumb): os.remove(thumb)
                             conn = sqlite3.connect(DB_NAME)
-                            conn.execute("UPDATE documents SET title=?, category=?, file_name=?, file_path=?, thumbnail_path=? WHERE id=?",
-                                        (new_title, new_cat, final_fname, final_fpath, final_thumb, id_))
+                            conn.execute("DELETE FROM documents WHERE id=?", (id_,))
                             conn.commit()
                             conn.close()
-                            st.success("Kemaskini berjaya!")
+                            st.success("Dipadam!")
                             st.rerun()
-
-                    with c2:
-                        st.download_button("QR Code", generate_qr(id_), f"QR_{id_}.png", "image/png", key=f"qr{id_}")
-
-                    with c3:
-                        if st.button("PADAM", key=f"d{id_}"):
-                            if st.session_state.get(f"confirm{id_}"):
-                                if os.path.exists(fpath): os.remove(fpath)
-                                if thumb and os.path.exists(thumb): os.remove(thumb)
-                                conn = sqlite3.connect(DB_NAME)
-                                conn.execute("DELETE FROM documents WHERE id=?", (id_,))
-                                conn.commit()
-                                conn.close()
-                                st.success("Dipadam!")
-                                st.rerun()
-                            else:
-                                st.session_state[f"confirm{id_}"] = True
-                                st.warning("Klik sekali lagi untuk padam")
+                        else:
+                            st.session_state[f"confirm{id_}"] = True
+                            st.warning("Klik sekali lagi untuk padam")
 
     if st.button("Log Keluar"):
         st.session_state.admin_logged_in = False
