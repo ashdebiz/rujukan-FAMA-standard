@@ -13,43 +13,41 @@ from PIL import Image, UnidentifiedImageError
 import base64
 
 # =============================================
-# KONFIGURASI & TEMA CANTIK FAMA
+# KONFIGURASI & TEMA
 # =============================================
-st.set_page_config(
-    page_title="Rujukan Standard FAMA",
-    page_icon="leaf",
-    layout="centered",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="leaf", layout="centered", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
     .main {background: #f8fff8;}
     [data-testid="stSidebar"] {background: linear-gradient(#1B5E20, #2E7D32);}
     .card {background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #c8e6c9; margin: 15px 0;}
-    .qr-container {
-        background: white; border-radius: 30px; padding: 40px; text-align: center;
-        box-shadow: 0 20px 50px rgba(27,94,32,0.2); border: 4px solid #4CAF50; margin: 30px 0;
-    }
-    .qr-title {color: #1B5E20; font-size: 2.3rem; font-weight: 900; margin: 10px 0;}
-    .qr-cat {color: #4CAF50; font-weight: bold; font-size: 1.4rem; margin: 10px 0;}
+    .qr-container {background: white; border-radius: 30px; padding: 40px; text-align: center; box-shadow: 0 20px 50px rgba(27,94,32,0.2); border: 4px solid #4CAF50; margin: 30px 0;}
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 55px; border: none;}
     h1,h2,h3 {color: #1B5E20;}
 </style>
 """, unsafe_allow_html=True)
 
-# =============================================
-# FOLDER & DATABASE
-# =============================================
-os.makedirs("uploads", exist_ok=True)
-os.makedirs("thumbnails", exist_ok=True)
+# Folder penting
+for folder in ["uploads", "thumbnails", "backups"]:
+    os.makedirs(folder, exist_ok=True)
 
 DB_NAME = "fama_standards.db"
 CATEGORIES = ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"]
 
+# =============================================
+# SENARAI PENGGUNA (superadmin = super1234)
+# =============================================
+USERS = {
+    "admin": hashlib.sha256("fama2025".encode()).hexdigest(),
+    "pengarah": hashlib.sha256("fama123".encode()).hexdigest(),
+    "superadmin": hashlib.sha256("super1234".encode()).hexdigest()
+}
+
 def init_db():
     conn = sqlite3.connect(DB_NAME)
-    conn.executescript('''
+    cur = conn.cursor()
+    cur.execute('''
         CREATE TABLE IF NOT EXISTS documents (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
@@ -60,56 +58,51 @@ def init_db():
             thumbnail_path TEXT,
             upload_date TEXT,
             uploaded_by TEXT
-        );
+        )
+    ''')
+    cur.execute('''
         CREATE TABLE IF NOT EXISTS admins (
             username TEXT PRIMARY KEY,
             password_hash TEXT NOT NULL
-        );
+        )
     ''')
-    conn.execute("INSERT OR IGNORE INTO admins VALUES ('admin', ?)", (hashlib.sha256("fama2025".encode()).hexdigest(),))
-    conn.execute("INSERT OR IGNORE INTO admins VALUES ('pengarah', ?)", (hashlib.sha256("fama123".encode()).hexdigest(),))
+    try:
+        cur.execute("SELECT content FROM documents LIMIT 1")
+    except sqlite3.OperationalError:
+        cur.execute("ALTER TABLE documents ADD COLUMN content TEXT")
+    for u, h in USERS.items():
+        cur.execute("INSERT OR IGNORE INTO admins VALUES (?, ?)", (u, h))
     conn.commit()
     conn.close()
+
 init_db()
 
 # =============================================
-# FUNGSI SELAMAT UNTUK THUMBNAIL (100% ANTI-CRASH!)
+# FUNGSI THUMBNAIL SELAMAT
 # =============================================
-def save_thumbnail_safely(uploaded_file, prefix="thumb"):
-    if uploaded_file is None:
-        return None
-    
+def save_thumbnail_safely(file, prefix="thumb"):
+    if not file: return None
     try:
-        data = uploaded_file.getvalue()
-        if len(data) > 5_000_000:  # Max 5MB
-            st.warning("Gambar thumbnail terlalu besar (maksimum 5MB)")
+        data = file.getvalue()
+        if len(data) > 5_000_000: 
+            st.warning("Gambar terlalu besar (max 5MB)")
             return None
-            
         img = Image.open(io.BytesIO(data))
-        
         if img.format not in ["JPEG", "JPG", "PNG", "WEBP"]:
-            st.warning("Format gambar tidak disokong. Guna JPG atau PNG sahaja.")
+            st.warning("Hanya JPG/PNG dibenarkan")
             return None
-            
-        if img.mode in ("RGBA", "P", "LA"):
-            img = img.convert("RGB")
-            
+        if img.mode != "RGB": img = img.convert("RGB")
         img.thumbnail((350, 500), Image.Resampling.LANCZOS)
-        
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        thumb_path = os.path.join("thumbnails", f"{prefix}_{ts}.jpg")
-        img.save(thumb_path, "JPEG", quality=90, optimize=True)
-        return thumb_path
-        
-    except UnidentifiedImageError:
-        st.error("Fail bukan gambar yang sah! Sila upload JPG/PNG sahaja.")
-        return None
+        path = f"thumbnails/{prefix}_{ts}.jpg"
+        img.save(path, "JPEG", quality=90, optimize=True)
+        return path
     except Exception as e:
-        st.error(f"Gagal proses thumbnail: {str(e)}")
+        st.error(f"Gagal simpan thumbnail: {e}")
         return None
 
 # =============================================
-# FUNGSI UTAMA
+# FUNGSI LAIN
 # =============================================
 def extract_text(file):
     if not file: return ""
@@ -139,41 +132,29 @@ def get_docs():
     conn.close()
     return docs
 
-# =============================================
-# STATISTIK CANTIK
-# =============================================
 def show_stats():
     docs = get_docs()
     total = len(docs)
-    thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
-    baru = len([d for d in docs if d[6][:10] >= thirty_days_ago]) if docs else 0
+    baru = len([d for d in docs if d[6][:10] >= (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")]) if docs else 0
     latest = max((d[6][:10] for d in docs), default="Belum ada") if docs else "Belum ada"
-    
-    cat_count = {cat: 0 for cat in CATEGORIES}
-    for d in docs:
-        if d[2] in cat_count:
-            cat_count[d[2]] += 1
+    cat_count = {c: sum(1 for d in docs if d[2] == c) for c in CATEGORIES}
 
     st.markdown(f"""
-    <div style="background:linear-gradient(to bottom, #0066ff 0%, #3399ff 100%); border-radius:25px; padding:25px; 
-                box-shadow:0 15px 40px rgba(27,94,32,0.4); margin:20px 0; color:white;">
-        <h2 style="text-align:center; margin:0 0 20px 0; font-size:2rem;">STATISTIK RUJUKAN FAMA STANDARD</h2>
+    <div style="background:linear-gradient(135deg,#1B5E20,#4CAF50); border-radius:25px; padding:25px; box-shadow:0 15px 40px rgba(27,94,32,0.4); margin:20px 0; color:white;">
+        <h2 style="text-align:center;">STATISTIK RUJUKAN STANDARD FAMA</h2>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; text-align:center;">
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:2rem; color:#ffffff;">{total}</h1>
-                <p style="margin:5px 0 0; font-size:1.1rem;">JUMLAH STANDARD</p>
+                <h1 style="margin:0; font-size:3rem;">{total}</h1><p>JUMLAH STANDARD</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:2rem; color:#ffffff;">{baru}</h1>
-                <p style="margin:5px 0 0; font-size:1.1rem;">BARU (30 HARI)</p>
+                <h1 style="margin:0; font-size:3rem;">{baru}</h1><p>BARU (30 HARI)</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:2rem; color:#ffffff;">{latest}</h1>
-                <p style="margin:5px 0 0; font-size:1rem;">TERKINI DIUPLOAD</p>
+                <h1 style="margin:0; font-size:2rem;">{latest}</h1><p>TERKINI</p>
             </div>
         </div>
-        <div style="margin-top:25px; display:grid; grid-template-columns: repeat(4, 1fr); gap:15px; font-size:0.95rem;">
-            {''.join(f'<div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:12px;"><strong>{cat}</strong><br>{cat_count[cat]}</div>' for cat in CATEGORIES)}
+        <div style="margin-top:20px; display:grid; grid-template-columns: repeat(4,1fr); gap:10px; text-align:center;">
+            {''.join(f'<div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:10px;"><strong>{c}</strong><br>{cat_count[c]}</div>' for c in CATEGORIES)}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -182,54 +163,31 @@ def show_stats():
 # SIDEBAR
 # =============================================
 with st.sidebar:
-    st.markdown("""
-    <div style="text-align: center; padding: 30px 0;">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png" width="80">
-        <h3 style="color:white; margin:15px 0 5px 0; font-weight: bold;">FAMA STANDARD</h3>
-        <p style="color:#c8e6c9; margin:0; font-size:0.95rem;">Bahagian Regulasi Pasaran</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
+    st.markdown("<h3 style='color:white; text-align:center;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#c8e6c9; text-align:center;'>Sistem Digital Rasmi</p>", unsafe_allow_html=True)
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
 
 # =============================================
-# HALAMAN UTAMA
+# HALAMAN UTAMA & QR (ringkas)
 # =============================================
 if page == "Halaman Utama":
-    st.markdown(f'''
-    <div style="position:relative; border-radius:25px; overflow:hidden; box-shadow:0 15px 40px rgba(27,94,32,0.5); margin:20px 0;">
-        <img src="https://w7.pngwing.com/pngs/34/259/png-transparent-fruits-and-vegetables.png?w=1400&h=500&fit=crop" style="width:100%; height:300px; object-fit:cover;">
-        <div style="position:absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, rgba(27,94,32,0.85), rgba(76,175,80,0.75));"></div>
-        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; width:100%;">
-            <h1 style="color:white; font-size:3.3rem; font-weight:900; margin:0; text-shadow: 4px 4px 15px rgba(0,0,0,0.8);">
-                RUJUKAN FAMA STANDARD 
-            </h1>
-            <p style="color:#e8f5e8; font-size:1.5rem; margin:20px 0 0; text-shadow: 2px 2px 8px rgba(0,0,0,0.7);">
-                Hasil Keluaran Pertanian Tempatan
-            </p>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
-
+    st.markdown("<h1 style='text-align:center; color:#1B5E20;'>RUJUKAN STANDARD FAMA</h1>", unsafe_allow_html=True)
     show_stats()
-
     col1, col2 = st.columns([3,1])
     with col1: cari = st.text_input("", placeholder="Cari tajuk standard...")
     with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES)
-
     docs = get_docs()
     hasil = [d for d in docs if (kat == "Semua" or d[2] == kat) and (not cari or cari.lower() in d[1].lower())]
-
-    st.markdown(f"<h3 style='color:#1B5E20;'>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
-
+    st.markdown(f"<h3>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
     for d in hasil:
         id_, title, cat, fname, fpath, thumb, date, uploader = d
         with st.container():
             st.markdown("<div class='card'>", unsafe_allow_html=True)
             c1, c2 = st.columns([1,3])
             with c1:
-                # Fallback cantik kalau thumbnail rosak
-                img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/350x500/4CAF50/white?text=FAMA+STANDARD"
+                img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/350x500/4CAF50/white?text=FAMA"
                 st.image(img, use_container_width=True)
             with c2:
                 st.markdown(f"<h2 style='margin:0; color:#1B5E20;'>{title}</h2>", unsafe_allow_html=True)
@@ -239,86 +197,34 @@ if page == "Halaman Utama":
                         st.download_button("MUAT TURUN", f.read(), fname, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-# =============================================
-# PAPAR QR CODE — CARI LANGSUNG + ANTI-CRASH
-# =============================================
 elif page == "Papar QR Code":
-    st.markdown(f'''
-    <div style="text-align:center; padding:30px; background:linear-gradient(135deg,#1B5E20,#4CAF50); 
-                border-radius:25px; margin:20px 0; box-shadow:0 15px 40px rgba(27,94,32,0.5);">
-        <h1 style="color:white; margin:0; font-size:2.8rem;">CARI & PAPAR QR CODE</h1>
-        <p style="color:#c8e6c9; margin:10px 0 0; font-size:1.2rem;">Taip nama standard untuk papar QR</p>
-    </div>
-    ''', unsafe_allow_html=True)
-
+    st.markdown("<h1 style='text-align:center; color:#1B5E20;'>CARI & PAPAR QR CODE</h1>", unsafe_allow_html=True)
     show_stats()
-
-    docs = get_docs()
-    if not docs:
-        st.info("Belum ada standard. Sila tambah di Admin Panel.")
-        st.stop()
-
-    search = st.text_input("", placeholder="Contoh: timun, durian, ros, standard sayur...", label_visibility="collapsed").strip()
-
+    search = st.text_input("", placeholder="Taip nama standard...", label_visibility="collapsed").strip()
     if not search:
         st.info("Taip nama standard untuk papar QR Code")
         st.stop()
-
-    matches = [d for d in docs if search.lower() in d[1].lower() or search.lower() in d[2].lower()]
-
+    matches = [d for d in get_docs() if search.lower() in d[1].lower() or search.lower() in d[2].lower()]
     if not matches:
-        st.warning(f"Tiada standard ditemui untuk \"{search}\"")
+        st.warning("Tiada padanan")
         st.stop()
-
     st.success(f"Ditemui {len(matches)} standard")
-
     if len(matches) == 1:
-        doc = matches[0]
-        id_, title, cat, fname, fpath, thumb, date, uploader = doc
-        qr_b64 = base64.b64encode(generate_qr(id_)).decode()
-
-        st.markdown(f"""
-        <div class="qr-container">
-            <h2 class="qr-title">{title}</h2>
-            <p class="qr-cat">{cat}</p>
-            <img src="data:image/png;base64,{qr_b64}" width="420">
-            <p style="margin:30px 0 10px; font-size:1.4rem; color:#333;"><strong>Scan untuk muat turun</strong></p>
-            <p style="color:#666;">ID: {id_} • {date[:10]} • {uploader}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
+        d = matches[0]
+        qr = base64.b64encode(generate_qr(d[0])).decode()
+        st.markdown(f"<div class='qr-container'><h2 class='qr-title'>{d[1]}</h2><p class='qr-cat'>{d[2]}</p><img src='data:image/png;base64,{qr}' width='420'></div>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        with c1:
-            st.download_button("MUAT TURUN QR", generate_qr(id_), f"QR_ID{id_}_{title[:30]}.png", "image/png", use_container_width=True)
+        with c1: st.download_button("QR CODE", generate_qr(d[0]), f"QR_{d[0]}.png", "image/png")
         with c2:
-            if os.path.exists(fpath):
-                with open(fpath, "rb") as f:
-                    st.download_button("MUAT TURUN FAIL", f.read(), fname, use_container_width=True)
+            if os.path.exists(d[4]):
+                with open(d[4], "rb") as f:
+                    st.download_button("FAIL PDF", f.read(), d[3])
     else:
         cols = st.columns(3)
-        for i, doc in enumerate(matches):
-            id_, title, cat, fname, fpath, thumb, date, uploader = doc
-            qr_b64 = base64.b64encode(generate_qr(id_)).decode()
-
+        for i, d in enumerate(matches):
             with cols[i % 3]:
-                st.markdown(f"""
-                <div style="background:white; border-radius:25px; padding:20px; text-align:center; 
-                            box-shadow:0 15px 40px rgba(27,94,32,0.15); border:4px solid #4CAF50; margin:20px 0;">
-                    <p style="font-weight:bold; color:#1B5E20; margin:8px 0 12px; font-size:1.1rem;">
-                        {title[:45]}{'...' if len(title)>45 else ''}
-                    </p>
-                    <p style="color:#4CAF50; font-weight:bold; margin:5px 0 15px;">{cat}</p>
-                    <img src="data:image/png;base64,{qr_b64}" width="200">
-                    <p style="margin:15px 0 8px; color:#333; font-size:0.95rem;"><strong>ID: {id_}</strong></p>
-                    <p style="color:#666; font-size:0.8rem; margin:5px 0;">{uploader}</p>
-                    <a href="?doc={id_}" target="_blank">
-                        <button style="background:#4CAF50; color:white; border:none; padding:10px 18px; 
-                                       border-radius:12px; font-weight:bold; cursor:pointer;">
-                            Buka Standard
-                        </button>
-                    </a>
-                </div>
-                """, unsafe_allow_html=True)
+                qr = base64.b64encode(generate_qr(d[0])).decode()
+                st.markdown(f"<div style='background:white; border-radius:25px; padding:20px; text-align:center; border:4px solid #4CAF50; margin:15px 0;'><p style='font-weight:bold; color:#1B5E20;'>{d[1][:40]}...</p><p style='color:#4CAF50;'><strong>{d[2]}</strong></p><img src='data:image/png;base64,{qr}' width='180'><p><strong>ID: {d[0]}</strong></p></div>", unsafe_allow_html=True)
 
 # =============================================
 # ADMIN PANEL — DENGAN PENGURUSAN DATABASE YANG 100% BERFUNGSI
