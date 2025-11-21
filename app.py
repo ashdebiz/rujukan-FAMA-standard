@@ -121,7 +121,7 @@ def show_stats():
     st.markdown(f"""
     <div style="background:linear-gradient(135deg,#1B5E20,#4CAF50); border-radius:25px; padding:25px; 
                 box-shadow:0 15px 40px rgba(27,94,32,0.4); margin:20px 0; color:white;">
-        <h2 style="text-align:center; margin:0 0 20px 0; font-size:2.3rem;">STATISTIK RUJUKAN FAMA STANDARD</h2>
+        <h2 style="text-align:center; margin:0 0 14px 0; font-size:2.3rem;">STATISTIK RUJUKAN FAMA STANDARD</h2>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; text-align:center;">
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
                 <h1 style="margin:0; font-size:3rem; color:#e8f5e8;">{total}</h1>
