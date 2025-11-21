@@ -187,6 +187,35 @@ if page == "Halaman Utama":
         </div>
     </div>
     ''', unsafe_allow_html=True)
+     show_stats()
+
+    col1, col2 = st.columns([3,1])
+    with col1: cari = st.text_input("", placeholder="Cari tajuk standard...")
+    with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES)
+
+    docs = get_docs()
+    hasil = [d for d in docs if (kat == "Semua" or d[2] == kat) and (not cari or cari.lower() in d[1].lower())]
+
+    st.markdown(f"<h3 style='color:#1B5E20;'>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
+
+    for d in hasil:
+        id_, title, cat, fname, fpath, thumb, date, uploader = d
+        with st.container():
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            c1, c2 = st.columns([1,3])
+            with c1:
+                # Fallback cantik kalau thumbnail rosak
+                img = thumb if thumb and os.path.exists(thumb) else "https://via.placeholder.com/350x500/4CAF50/white?text=FAMA+STANDARD"
+                st.image(img, use_container_width=True)
+            with c2:
+                st.markdown(f"<h2 style='margin:0; color:#1B5E20;'>{title}</h2>", unsafe_allow_html=True)
+                st.caption(f"**{cat}** • {date[:10]} • {uploader}")
+                if fpath and os.path.exists(fpath):
+                    with open(fpath, "rb") as f:
+                        st.download_button("MUAT TURUN", f.read(), fname, use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+
 elif page == "Papar QR Code":
     st.markdown("<h1 style='text-align:center; color:#1B5E20;'>CARI & PAPAR QR CODE</h1>", unsafe_allow_html=True)
     show_stats()
