@@ -125,14 +125,14 @@ def show_stats():
     cat_count = {c: sum(1 for d in docs if d['category'] == c) for c in CATEGORIES}
 
     st.markdown(f"""
-    <div style="background:linear-gradient(135deg,#1B5E20,#4CAF50); border-radius:25px; padding:25px; color:white; box-shadow:0 15px 40px rgba(27,94,32,0.4);">
-        <h2 style="text-align:center; margin:0 0 20px;">STATISTIK RUJUKAN STANDARD FAMA</h2>
+    <div style="background:linear-gradient(to bottom, #0066ff 0%, #0099ff 100%); border-radius:25px; padding:25px; color:white; box-shadow:0 15px 40px rgba(27,94,32,0.4);">
+        <h2 style="text-align:center; margin:0 0 20px;">STATISTIK RUJUKAN FAMA STANDARD </h2>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; text-align:center;">
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:3rem;">{total}</h1><p>JUMLAH STANDARD</p>
+                <h1 style="margin:0; font-size:2rem;">{total}</h1><p>JUMLAH STANDARD</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:3rem;">{baru}</h1><p>BARU (30 HARI)</p>
+                <h1 style="margin:0; font-size:2rem;">{baru}</h1><p>BARU (30 HARI)</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
                 <h1 style="margin:0; font-size:2rem;">{latest}</h1><p>TERKINI</p>
@@ -150,7 +150,7 @@ def show_stats():
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
     st.markdown("<h3 style='color:white; text-align:center;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#c8e6c9; text-align:center;'>Sistem Digital Rasmi</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#c8e6c9; text-align:center;'>Hasil Keluaran Pertanian Tempatan</p>", unsafe_allow_html=True)
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
 
@@ -160,7 +160,7 @@ with st.sidebar:
 if page == "Halaman Utama":
     st.markdown(f'''
     <div style="position:relative; border-radius:25px; overflow:hidden; box-shadow:0 15px 40px rgba(27,94,32,0.5); margin:20px 0;">
-        <img src="https://images.unsplash.com/photo-1542838132-92c5338a0763?w=1400&h=500&fit=crop" style="width:100%; height:300px; object-fit:cover;">
+        <img src="https://w7.pngwing.com/pngs/34/259/png-transparent-fruits-and-vegetables.png?w=1400&h=500&fit=crop" style="width:100%; height:300px; object-fit:cover;">
         <div style="position:absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, rgba(27,94,32,0.85), rgba(76,175,80,0.75));"></div>
         <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;">
             <h1 style="color:white; font-size:3.3rem; font-weight:900; margin:0; text-shadow: 4px 4px 15px black;">
