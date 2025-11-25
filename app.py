@@ -13,7 +13,7 @@ from PIL import Image
 import base64
 
 # =============================================
-# KONFIGURASI & TEMA CANTIK + CHATBOX
+# KONFIGURASI & TEMA FAMA CANTIK
 # =============================================
 st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="leaf", layout="centered", initial_sidebar_state="expanded")
 
@@ -27,7 +27,7 @@ st.markdown("""
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 55px; border: none;}
     h1,h2,h3 {color: #1B5E20;}
 
-    /* CENTER LOGO FAMA */
+    /* LOGO FAMA CENTER */
     .sidebar-logo-container {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         padding: 30px 0; text-align: center;
@@ -64,11 +64,12 @@ ADMIN_CREDENTIALS = {
 }
 
 # =============================================
-# INIT DB + TABLE CHAT
+# INIT DB — DIPASTIKAN SELALU JALAN
 # =============================================
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
+    
     cur.execute('''
         CREATE TABLE IF NOT EXISTS documents (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +78,9 @@ def init_db():
             upload_date TEXT, uploaded_by TEXT
         )
     ''')
+    
     cur.execute('''CREATE TABLE IF NOT EXISTS admins (username TEXT PRIMARY KEY, password_hash TEXT)''')
+    
     cur.execute('''
         CREATE TABLE IF NOT EXISTS chat_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,15 +88,20 @@ def init_db():
             timestamp TEXT NOT NULL, is_admin INTEGER DEFAULT 0
         )
     ''')
-    try: cur.execute("SELECT content FROM documents LIMIT 1")
-    except sqlite3.OperationalError: cur.execute("ALTER TABLE documents ADD COLUMN content TEXT")
+    
+    try:
+        cur.execute("SELECT content FROM documents LIMIT 1")
+    except sqlite3.OperationalError:
+        cur.execute("ALTER TABLE documents ADD COLUMN content TEXT")
+    
     for u, h in ADMIN_CREDENTIALS.items():
         cur.execute("INSERT OR IGNORE INTO admins VALUES (?, ?)", (u, h))
+    
     conn.commit()
     conn.close()
 
-if not os.path.exists(DB_NAME):
-    init_db()
+# PANGGIL INI SETIAP KALI APP START — FIX ERROR 100%
+init_db()
 
 # =============================================
 # FUNGSI ASAS
@@ -131,7 +139,6 @@ def generate_qr(id_):
     return buf.getvalue()
 
 def get_docs():
-    if not os.path.exists(DB_NAME): return []
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -141,16 +148,20 @@ def get_docs():
     return [dict(row) for row in rows]
 
 # =============================================
-# CHAT FUNGSI
+# CHAT FUNGSI — DENGAN SAFETY
 # =============================================
 def get_chat_messages():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM chat_messages ORDER BY timestamp ASC")
-    rows = cur.fetchall()
-    conn.close()
-    return [dict(row) for row in rows]
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM chat_messages ORDER BY timestamp ASC")
+        rows = cur.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    except:
+        init_db()
+        return []
 
 def add_chat_message(sender, message, is_admin=False):
     conn = sqlite3.connect(DB_NAME)
@@ -206,7 +217,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### Hubungi Admin FAMA")
 
-    # Papar mesej lama
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     for msg in get_chat_messages():
         admin_class = " chat-bubble-admin" if msg['is_admin'] else ""
@@ -222,7 +232,6 @@ with st.sidebar:
         """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Form hantar mesej
     with st.form(key="chat_form", clear_on_submit=True):
         nama = st.text_input("Nama", placeholder="Contoh: Ahmad")
         pesan = st.text_area("Mesej", placeholder="Tanya apa-apa tentang standard FAMA...", height=80)
@@ -318,7 +327,7 @@ elif page == "Papar QR Code":
                 """, unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL
+# ADMIN PANEL — FULL POWER
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -340,7 +349,6 @@ else:
 
     tab1, tab2, tab3, tab_chat = st.tabs(["Tambah Standard", "Senarai & Edit", "Backup & Recovery", "Chat Pengguna"])
 
-    # TAB TAMBAH
     with tab1:
         file = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
         title = st.text_input("Tajuk Standard")
@@ -360,7 +368,6 @@ else:
                 conn.commit(); conn.close()
                 st.success("Berjaya disimpan!"); st.balloons()
 
-    # TAB EDIT
     with tab2:
         for d in get_docs():
             with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
@@ -416,7 +423,6 @@ else:
                             conn.commit(); conn.close()
                             st.success("Dipadam!"); st.rerun()
 
-    # TAB BACKUP
     with tab3:
         st.markdown("## Backup & Recovery (Anti-Hilang)")
         if not os.path.exists(DB_NAME) or len(get_docs()) == 0:
@@ -436,7 +442,6 @@ else:
                 f.write(uploaded_db.getvalue())
             st.success("DATA DIPULIHKAN 100%!"); st.balloons(); st.rerun()
 
-    # TAB CHAT PENGGUNA
     with tab_chat:
         st.markdown("### Mesej daripada Pengguna")
         messages = get_chat_messages()
