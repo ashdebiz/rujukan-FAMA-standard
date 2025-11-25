@@ -41,7 +41,7 @@ st.markdown("""
         margin-bottom: 15px;
     }
     .sidebar-title {
-        color: white;
+        color: #ffffff;
         font-size: 1.8rem;
         font-weight: 900;
         margin: 0;
