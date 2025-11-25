@@ -26,6 +26,32 @@ st.markdown("""
     .big-warning {background: #ffebee; border-left: 8px solid #f44336; padding: 20px; border-radius: 12px; margin: 20px 0;}
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 55px; border: none;}
     h1,h2,h3 {color: #1B5E20;}
+    
+    /* CENTER LOGO FAMA DI SIDEBAR */
+    .sidebar-logo-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 0;
+        text-align: center;
+    }
+    .sidebar-logo-container img {
+        width: 100px;
+        margin-bottom: 15px;
+    }
+    .sidebar-title {
+        color: white;
+        font-size: 1.8rem;
+        font-weight: 900;
+        margin: 0;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+    }
+    .sidebar-subtitle {
+        color: #c8e6c9;
+        font-size: 0.95rem;
+        margin: 5px 0 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
