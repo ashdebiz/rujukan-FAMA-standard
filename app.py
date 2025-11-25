@@ -15,7 +15,12 @@ import base64
 # =============================================
 # KONFIGURASI & TEMA FAMA CANTIK
 # =============================================
-st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="leaf", layout="centered", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="Rujukan Standard FAMA",
+    page_icon="leaf",
+    layout="centered",
+    initial_sidebar_state="expanded"
+)
 
 st.markdown("""
 <style>
@@ -23,20 +28,20 @@ st.markdown("""
     [data-testid="stSidebar"] {background: linear-gradient(#1B5E20, #2E7D32);}
     .card {background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #c8e6c9; margin: 15px 0;}
     .qr-container {background: white; border-radius: 30px; padding: 40px; text-align: center; box-shadow: 0 20px 50px rgba(27,94,32,0.2); border: 4px solid #4CAF50; margin: 30px 0;}
+    .big-warning {background: #ffebee; border-left: 8px solid #f44336; padding: 20px; border-radius: 12px; margin: 20px 0;}
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 55px; border: none;}
-    h1,h2,h3 {color: #1B5E20;}
+    h1, h2, h3 {color: #1B5E20;}
 </style>
 """, unsafe_allow_html=True)
 
-# Pastikan semua folder wujud
-os.makedirs("uploads", exist_ok=True)
-os.makedirs("thumbnails", exist_ok=True)
-os.makedirs("backups", exist_ok=True)  # ← Folder backup
+# Pastikan folder wujud
+for folder in ["uploads", "thumbnails", "backups"]:
+    os.makedirs(folder, exist_ok=True)
 
 DB_NAME = "fama_standards.db"
 CATEGORIES = ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"]
 
-# Admin biasa
+# Admin credentials
 ADMIN_CREDENTIALS = {
     "admin": hashlib.sha256("fama2025".encode()).hexdigest(),
     "pengarah": hashlib.sha256("fama123".encode()).hexdigest()
@@ -67,34 +72,49 @@ def init_db():
             password_hash TEXT NOT NULL
         )
     ''')
+    # Tambah column content kalau tak wujud
     try:
         cur.execute("SELECT content FROM documents LIMIT 1")
     except sqlite3.OperationalError:
         cur.execute("ALTER TABLE documents ADD COLUMN content TEXT")
+    # Tambah admin default
     for u, h in ADMIN_CREDENTIALS.items():
         cur.execute("INSERT OR IGNORE INTO admins VALUES (?, ?)", (u, h))
     conn.commit()
     conn.close()
 
-init_db()
+if not os.path.exists(DB_NAME):
+    init_db()
 
 # =============================================
-# FUNGSI THUMBNAIL & QR
+# FUNGSI UTAMA
 # =============================================
-def save_thumbnail_safely(uploaded_file, prefix="thumb"):
-    if not uploaded_file: return None
+def save_thumbnail_safely(file, prefix="thumb"):
+    if not file: return None
     try:
-        img = Image.open(io.BytesIO(uploaded_file.getvalue()))
+        img = Image.open(io.BytesIO(file.getvalue()))
         if img.format not in ["JPEG", "JPG", "PNG", "WEBP"]:
-            st.warning("Guna JPG/PNG sahaja")
             return None
-        if img.mode != "RGB": img = img.convert("RGB")
+        if img.mode != "RGB":
+            img = img.convert("RGB")
         img.thumbnail((350, 500), Image.Resampling.LANCZOS)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         path = f"thumbnails/{prefix}_{ts}.jpg"
         img.save(path, "JPEG", quality=90)
         return path
-    except: return None
+    except:
+        return None
+
+def extract_text(file):
+    if not file: return ""
+    try:
+        data = file.getvalue()
+        if file.name.lower().endswith(".pdf"):
+            return " ".join(p.extract_text() or "" for p in PyPDF2.PdfReader(io.BytesIO(data)).pages)
+        elif file.name.lower().endswith(".docx"):
+            return " ".join(p.text for p in Document(io.BytesIO(data)).paragraphs)
+    except: pass
+    return ""
 
 def generate_qr(id_):
     url = f"https://rujukan-fama-standard.streamlit.app/?doc={id_}"
@@ -105,7 +125,8 @@ def generate_qr(id_):
     return buf.getvalue()
 
 def get_docs():
-    if not os.path.exists(DB_NAME): return []
+    if not os.path.exists(DB_NAME):
+        return []
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -135,7 +156,7 @@ def show_stats():
                 <h1 style="margin:0; font-size:2rem;">{baru}</h1><p>BARU (30 HARI)</p>
             </div>
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
-                <h1 style="margin:0; font-size:2rem;">{latest}</h1><p>TERKINI</p>
+                <h1 style="margin:0; font-size:1.5rem;">{latest}</h1><p>TERKINI</p>
             </div>
         </div>
         <div style="margin-top:25px; display:grid; grid-template-columns: repeat(4,1fr); gap:15px;">
@@ -150,12 +171,12 @@ def show_stats():
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png", width=80)
     st.markdown("<h3 style='color:white; text-align:center;'>FAMA STANDARD</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#c8e6c9; text-align:center;'>Hasil Keluaran Pertanian Tempatan</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color:#c8e6c9; text-align:center;'>Bahagian Regulasi Pasaran</p>", unsafe_allow_html=True)
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
 
 # =============================================
-# HALAMAN UTAMA & QR CODE (sama cantik)
+# HALAMAN UTAMA
 # =============================================
 if page == "Halaman Utama":
     st.markdown(f'''
@@ -164,9 +185,9 @@ if page == "Halaman Utama":
         <div style="position:absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, rgba(27,94,32,0.85), rgba(76,175,80,0.75));"></div>
         <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;">
             <h1 style="color:white; font-size:3.3rem; font-weight:900; margin:0; text-shadow: 4px 4px 15px black;">
-                RUJUKAN STANDARD FAMA
+                RUJUKAN FAMA STANDARD 
             </h1>
-            <p style="color:#e8f5e8; font-size:1.5rem; margin:20px 0 0;">Sistem Digital Rasmi • 2025</p>
+            <p style="color:#e8f5e8; font-size:1.5rem; margin:20px 0 0;">Keluaran Hasil Pertanian Tempatan</p>
         </div>
     </div>
     ''', unsafe_allow_html=True)
@@ -175,7 +196,7 @@ if page == "Halaman Utama":
     col1, col2 = st.columns([3,1])
     with col1: cari = st.text_input("", placeholder="Cari tajuk standard...")
     with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES)
-    
+
     docs = get_docs()
     hasil = [d for d in docs if (kat == "Semua" or d['category'] == kat) and (not cari or cari.lower() in d['title'].lower())]
     st.markdown(f"<h3>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
@@ -195,6 +216,9 @@ if page == "Halaman Utama":
                         st.download_button("MUAT TURUN", f.read(), d['file_name'], use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
+# =============================================
+# PAPAR QR CODE
+# =============================================
 elif page == "Papar QR Code":
     st.markdown("<h1 style='text-align:center; color:#1B5E20;'>CARI & PAPAR QR CODE</h1>", unsafe_allow_html=True)
     show_stats()
@@ -202,10 +226,10 @@ elif page == "Papar QR Code":
     if not search:
         st.info("Taip nama standard untuk papar QR Code")
         st.stop()
-    
+
     matches = [d for d in get_docs() if search.lower() in d['title'].lower() or search.lower() in d['category'].lower()]
     if not matches:
-        st.warning("Tiada padanan")
+        st.warning("Tiada padanan ditemui")
         st.stop()
 
     if len(matches) == 1:
@@ -213,8 +237,8 @@ elif page == "Papar QR Code":
         qr = base64.b64encode(generate_qr(d['id'])).decode()
         st.markdown(f"""
         <div class="qr-container">
-            <h2 class="qr-title">{d['title']}</h2>
-            <p class="qr-cat">{d['category']}</p>
+            <h2 style="color:#1B5E20; font-size:2.3rem;">{d['title']}</h2>
+            <p style="color:#4CAF50; font-weight:bold; font-size:1.4rem;">{d['category']}</p>
             <img src="data:image/png;base64,{qr}" width="420">
         </div>
         """, unsafe_allow_html=True)
@@ -239,7 +263,7 @@ elif page == "Papar QR Code":
                 """, unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL + BACKUP & RESTORE DATABASE
+# ADMIN PANEL + BACKUP & RECOVERY PINTAR
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -259,9 +283,9 @@ else:
 
     st.success(f"Selamat Datang, {st.session_state.user.upper()}")
 
-    tab1, tab2, tab3 = st.tabs(["Tambah Standard", "Senarai & Edit", "Backup & Restore"])
+    tab1, tab2, tab3 = st.tabs(["Tambah Standard", "Senarai & Edit", "Backup & Recovery"])
 
-    # Tab Tambah
+    # TAB TAMBAH
     with tab1:
         file = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
         title = st.text_input("Tajuk Standard")
@@ -274,13 +298,14 @@ else:
                 fpath = f"uploads/{ts}_{Path(file.name).stem}{ext}"
                 with open(fpath, "wb") as f: f.write(file.getvalue())
                 tpath = save_thumbnail_safely(thumb, "new")
+                content = extract_text(file)
                 conn = sqlite3.connect(DB_NAME)
-                conn.execute("INSERT INTO documents (title, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by) VALUES (?,?,?,?,?,?,?)",
-                             (title, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
+                conn.execute("INSERT INTO documents (title, content, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by) VALUES (?,?,?,?,?,?,?,?)",
+                             (title, content, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
                 conn.commit(); conn.close()
                 st.success("Berjaya disimpan!"); st.balloons()
 
-    # Tab Senarai & Edit
+    # TAB SENARAI & EDIT
     with tab2:
         for d in get_docs():
             with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
@@ -306,45 +331,63 @@ else:
                             conn.commit(); conn.close()
                             st.success("Dipadam!"); st.rerun()
 
-    # Tab Backup & Restore — INI YANG KAU NAK!
+    # TAB BACKUP & RECOVERY PINTAR
     with tab3:
-        st.markdown("### Backup & Restore Database")
-        st.info("Guna fungsi ini untuk simpan & pulihkan semua data bila app sleep")
+        st.markdown("## Backup & Recovery Data (Anti-Hilang)")
 
-        col1, col2 = st.columns(2)
+        docs = get_docs()
+        db_exists = os.path.exists(DB_NAME)
+        has_data = len(docs) > 0
 
-        with col1:
-            st.markdown("#### Download Backup Database")
-            if os.path.exists(DB_NAME):
-                with open(DB_NAME, "rb") as f:
-                    st.download_button(
-                        label="DOWNLOAD DATABASE SEKARANG",
-                        data=f.read(),
-                        file_name=f"fama_standards_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
-                        mime="application/octet-stream",
-                        use_container_width=True
-                    )
-            else:
-                st.warning("Tiada database lagi")
+        # WARNING KALAU DATA HILANG
+        if not db_exists or not has_data:
+            st.markdown(f"""
+            <div class="big-warning">
+                <h2>PERHATIAN: DATA HILANG ATAU KOSONG!</h2>
+                <p>App mungkin telah sleep lama. Jangan panik!</p>
+                <p><strong>Upload fail backup .db di bawah → klik RESTORE → semua data balik!</strong></p>
+            </div>
+            """, unsafe_allow_html=True)
 
-        with col2:
-            st.markdown("#### Upload Database (Restore)")
-            uploaded_db = st.file_uploader("Upload fail .db", type=["db"])
-            if uploaded_db and st.button("RESTORE DATABASE DARI FAIL", type="primary"):
-                if st.checkbox("Saya pasti nak ganti database semasa"):
-                    # Backup dulu database lama
-                    backup_name = f"backups/backup_sebelum_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-                    if os.path.exists(DB_NAME):
-                        shutil.copy(DB_NAME, backup_name)
-                        st.info(f"Backup lama disimpan: {os.path.basename(backup_name)}")
-                    
-                    # Ganti database
-                    with open(DB_NAME, "wb") as f:
-                        f.write(uploaded_db.getvalue())
-                    
-                    st.success("Database berjaya dipulihkan!")
-                    st.balloons()
-                    st.rerun()
+        # DOWNLOAD BACKUP (AUTO-OFFER)
+        if db_exists and has_data:
+            with open(DB_NAME, "rb") as f:
+                st.download_button(
+                    label="DOWNLOAD BACKUP DATABASE SEKARANG (WAJIB!)",
+                    data=f.read(),
+                    file_name=f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
+                    mime="application/octet-stream",
+                    use_container_width=True,
+                    type="primary"
+                )
+            st.success("Setiap kali tekan butang atas = backup terkini!")
+
+        # UPLOAD & RESTORE
+        st.markdown("### Pulihkan Data (One-Click Recovery)")
+        uploaded_db = st.file_uploader("Upload fail backup .db untuk pulihkan data", type=["db"])
+        if uploaded_db:
+            if st.button("YA, RESTORE DATABASE SEKARANG!", type="primary", use_container_width=True):
+                # Backup dulu yang lama
+                if os.path.exists(DB_NAME):
+                    backup_path = f"backups/old_before_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+                    shutil.copy(DB_NAME, backup_path)
+                    st.info(f"Backup lama disimpan: {os.path.basename(backup_path)}")
+
+                # Restore
+                with open(DB_NAME, "wb") as f:
+                    f.write(uploaded_db.getvalue())
+                st.success("DATA BERJAYA DIPULIHKAN 100%!")
+                st.balloons()
+                st.rerun()
+
+        # Senarai backup lama
+        backups = sorted([f for f in os.listdir("backups") if f.endswith(".db")], reverse=True)
+        if backups:
+            st.markdown("### Backup Lama Tersedia")
+            for b in backups[:10]:
+                path = f"backups/{b}"
+                with open(path, "rb") as f:
+                    st.download_button(f"Download {b}", f.read(), b, mime="application/octet-stream")
 
     if st.button("Log Keluar"):
         st.session_state.clear()
