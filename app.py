@@ -213,6 +213,8 @@ def add_chat_message(sender, message, is_admin=False):
 # =============================================
 # SIDEBAR — LOGO + MENU + CHATBOX WHATSAPP CANTIK
 # =============================================
+# Gantikan bahagian sidebar je (yang lain kekal sama macam kod terakhir aku bagi)
+
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-logo-container">
@@ -226,62 +228,57 @@ with st.sidebar:
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
     
     st.markdown("---")
-    
-    # Chatbox WhatsApp Style
-    st.markdown('<div class="chat-box">', unsafe_allow_html=True)
-    st.markdown('<div class="chat-header">Chat dengan Admin FAMA</div>', unsafe_allow_html=True)
-    st.markdown('<div class="chat-messages">', unsafe_allow_html=True)
+    st.markdown("#### Hubungi Admin FAMA")
 
-    messages = get_chat_messages()
-    for msg in messages:
-        if msg['is_admin']:
-            st.markdown(f'''
-            <div class="msg-left">
-                <div class="bubble-left">
-                    <strong>Admin FAMA</strong><br>
+    # Chatbox — clean, simple, pro
+    chat_container = st.container()
+    with chat_container:
+        # Papar mesej lama
+        messages = get_chat_messages()
+        for msg in messages[-10:]:  # tunjuk 10 mesej terakhir je supaya tak penuh
+            if msg['is_admin']:
+                st.markdown(f"""
+                <div style="background:#E8F5E8; border-radius:12px; padding:10px 14px; margin:8px 0; max-width:85%; margin-left:auto; border-left:4px solid #4CAF50;">
+                    <small><strong>Admin FAMA</strong> • {msg['timestamp'][-5:]}</small><br>
                     {msg['message']}
-                    <div class="msg-time">{msg['timestamp'][-5:]}</div>
                 </div>
-            </div>
-            ''', unsafe_allow_html=True)
-        else:
-            st.markdown(f'''
-            <div class="msg-right">
-                <div class="bubble-right">
-                    <strong>{msg['sender']}</strong><br>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background:#4CAF50; color:white; border-radius:12px; padding:10px 14px; margin:8px 0; max-width:85%;">
+                    <small><strong>{msg['sender']}</strong> • {msg['timestamp'][-5:]}</small><br>
                     {msg['message']}
-                    <div class="msg-time">{msg['timestamp'][-5:]}</div>
                 </div>
-            </div>
-            ''', unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Input mesej
+    with st.form(key="chat_form", clear_on_submit=True):
+        col1, col2 = st.columns([1.8, 4.2])
+        with col1:
+            nama = st.text_input("Nama", placeholder="Nama anda", label_visibility="collapsed")
+        with col2:
+            pesan = st.text_input("Mesej", placeholder="Tanya tentang standard FAMA...", label_visibility="collapsed")
+        
+        kirim = st.form_submit_button("Hantar Mesej", use_container_width=True)
+        
+        if kirim:
+            if not nama.strip():
+                st.error("Sila isi nama")
+            elif not pesan.strip():
+                st.error("Sila isi mesej")
+            else:
+                add_chat_message(nama.strip(), pesan.strip())
+                st.success("Mesej dihantar!")
+                st.rerun()
 
-    # Input area
-    st.markdown('<div class="chat-input-area">', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([2.5, 5, 1.5])
-    with col1:
-        nama = st.text_input("", placeholder="Nama", key="chat_nama", label_visibility="collapsed")
-    with col2:
-        pesan = st.text_input("", placeholder="Tanya standard FAMA...", key="chat_pesan", label_visibility="collapsed")
-    with col3:
-        kirim = st.button("Hantar", use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    if kirim and pesan.strip():
-        sender = nama.strip() if nama.strip() else "Pengguna"
-        add_chat_message(sender, pesan.strip())
-        st.rerun()
-
-# Auto scroll ke bawah
-if messages:
-    st.markdown("""
-    <script>
-        const chat = parent.document.querySelector('.chat-messages');
-        if (chat) chat.scrollTop = chat.scrollHeight;
-    </script>
-    """, unsafe_allow_html=True)
+    # Auto scroll ke bawah (smooth)
+    if messages:
+        st.markdown("""
+        <script>
+            const chat = parent.document.querySelector('[data-testid="stVerticalBlock"] > div:last-child');
+            if (chat) chat.scrollTop = chat.scrollHeight;
+        </script>
+        """, unsafe_allow_html=True)
 
 # =============================================
 # HALAMAN UTAMA, QR CODE, ADMIN PANEL — 100% SAMA MACAM KOD ASAL KAU
