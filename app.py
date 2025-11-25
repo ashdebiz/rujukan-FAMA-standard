@@ -23,16 +23,11 @@ st.markdown("""
     [data-testid="stSidebar"] {background: linear-gradient(#1B5E20, #2E7D32);}
     .card {background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #c8e6c9; margin: 15px 0;}
     .qr-container {background: white; border-radius: 30px; padding: 40px; text-align: center; box-shadow: 0 20px 50px rgba(27,94,32,0.2); border: 4px solid #4CAF50; margin: 30px 0;}
-    .big-warning {background: #ffebee; border-left: 8px solid #f44336; padding: 20px; border-radius: 12px; margin: 20px 0;}
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 55px; border: none;}
     h1,h2,h3 {color: #1B5E20;}
-
-    .sidebar-logo-container {
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        padding: 30px 0; text-align: center;
-    }
+    .sidebar-logo-container {text-align: center; padding: 30px 0;}
     .sidebar-logo-container img {width: 100px; margin-bottom: 15px;}
-    .sidebar-title {color: #c8e6c9; font-size: 1.8rem; font-weight: 900; margin: 0;}
+    .sidebar-title {color: #ffffff; font-size: 1.8rem; font-weight: 900; margin: 0; text-shadow: 2px 2px 8px rgba(0,0,0,0.5);}
     .sidebar-subtitle {color: #c8e6c9; font-size: 0.95rem; margin: 5px 0 0;}
 </style>
 """, unsafe_allow_html=True)
@@ -116,16 +111,13 @@ def get_docs():
     return [dict(row) for row in rows]
 
 def get_chat_messages():
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM chat_messages ORDER BY timestamp ASC")
-        rows = cur.fetchall()
-        conn.close()
-        return [dict(row) for row in rows]
-    except:
-        return []
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM chat_messages ORDER BY timestamp ASC")
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
 
 def add_chat_message(sender, message, is_admin=False):
     conn = sqlite3.connect(DB_NAME)
@@ -135,7 +127,7 @@ def add_chat_message(sender, message, is_admin=False):
     conn.close()
 
 # =============================================
-# STATISTIK — SAMA MACAM KOD ASAL KAU
+# STATISTIK — SAMA MACAM ASAL KAU
 # =============================================
 def show_stats():
     docs = get_docs()
@@ -297,9 +289,9 @@ elif page == "Papar QR Code":
                 """, unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — DENGAN BUTANG PADAM SEMUA CHAT
+# ADMIN PANEL — DENGAN PADAM CHAT 100% HILANG!
 # =============================================
-else:  # Admin Panel
+else:
     if not st.session_state.get("logged_in"):
         st.markdown("<h1 style='text-align:center; color:#1B5E20;'>ADMIN PANEL</h1>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
@@ -335,61 +327,54 @@ else:  # Admin Panel
                 conn = sqlite3.connect(DB_NAME)
                 conn.execute("INSERT INTO documents (title, content, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by) VALUES (?,?,?,?,?,?,?,?)",
                              (title, content, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
-                conn.commit()
-                conn.close()
-                st.success("Berjaya disimpan!")
-                st.balloons()
-                st.rerun()
+                conn.commit(); conn.close()
+                st.success("Berjaya disimpan!"); st.balloons(); st.rerun()
 
     with tab2:
         for d in get_docs():
             with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
                 col1, col2 = st.columns([1, 3])
                 with col1:
-                    img_path = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/300x420/4CAF50/white?text=FAMA"
-                    st.image(img_path, caption="Thumbnail", width=250)
+                    img = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/300x420/4CAF50/white?text=FAMA"
+                    st.image(img, caption="Thumbnail", width=250)
                 with col2:
                     new_title = st.text_input("Tajuk", value=d['title'], key=f"t_{d['id']}")
                     new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(d['category']), key=f"c_{d['id']}")
                     if st.button("KEMASKINI", key=f"u_{d['id']}"):
                         conn = sqlite3.connect(DB_NAME)
                         conn.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
-                        conn.commit()
-                        conn.close()
-                        st.success("Dikemaskini!")
-                        st.rerun()
+                        conn.commit(); conn.close()
+                        st.success("Dikemaskini!"); st.rerun()
                     if st.button("PADAM", key=f"d_{d['id']}"):
                         if st.checkbox("Pasti padam?", key=f"del_{d['id']}"):
                             if os.path.exists(d['file_path']): os.remove(d['file_path'])
                             if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
                             conn = sqlite3.connect(DB_NAME)
                             conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
-                            conn.commit()
-                            conn.close()
-                            st.success("Dipadam!")
-                            st.rerun()
+                            conn.commit(); conn.close()
+                            st.success("Dipadam!"); st.rerun()
 
     with tab3:
         if os.path.exists(DB_NAME):
             with open(DB_NAME, "rb") as f:
-                st.download_button("Download Backup .db", f.read(), f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d')}.db", type="primary")
+                st.download_button("Download Backup", f.read(), f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d')}.db", type="primary")
         uploaded = st.file_uploader("Upload backup .db", type=["db"])
         if uploaded and st.button("Restore Database", type="primary"):
             shutil.copy(DB_NAME, f"backups/old_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
             with open(DB_NAME, "wb") as f: f.write(uploaded.getvalue())
-            st.success("Database dipulihkan!")
-            st.rerun()
+            st.success("Database dipulihkan!"); st.rerun()
 
     with tab_chat:
         st.markdown("### Chat dengan Pengguna")
 
-        # BUTANG PADAM SEMUA CHAT
+        # BUTANG PADAM SEMUA CHAT — 100% HILANG!
         if st.button("Padam Semua Chat", type="secondary"):
-            if st.checkbox("Saya pasti nak padam SEMUA chat (tak boleh undo)", key="confirm_clear"):
+            if st.checkbox("Saya pasti nak padam semua chat (tak boleh undo)", key="confirm_clear_all_chat"):
                 conn = sqlite3.connect(DB_NAME)
                 conn.execute("DELETE FROM chat_messages")
                 conn.commit()
                 conn.close()
+                st.cache_data.clear()  # Clear cache Streamlit
                 st.success("Semua chat telah dipadam!")
                 st.balloons()
                 st.rerun()
@@ -400,10 +385,11 @@ else:  # Admin Panel
             st.info("Tiada mesej lagi")
         else:
             for m in reversed(msgs):
-                st.markdown(f"**{m['sender']}** • {m['timestamp']}")
+                sender = "Admin FAMA" if m['is_admin'] else m['sender']
+                st.markdown(f"**{sender}** • {m['timestamp']}")
                 st.info(m['message'])
-                reply = st.text_input("Balas", key=f"r_{m['id']}")
-                if st.button("Hantar Balasan", key=f"s_{m['id']}"):
+                reply = st.text_input("Balas", key=f"reply_{m['id']}")
+                if st.button("Hantar", key=f"send_{m['id']}"):
                     if reply.strip():
                         add_chat_message("Admin FAMA", reply.strip(), is_admin=True)
                         st.success("Balasan dihantar!")
@@ -413,4 +399,4 @@ else:  # Admin Panel
         st.session_state.clear()
         st.rerun()
 
-st.success("SIAP 100%! Admin Panel jalan + Ada butang PADAM SEMUA CHAT!")
+st.caption("FAMA Standard kau dah level Kementerian + Live Chat + Padam Chat 100% Hilang!")
