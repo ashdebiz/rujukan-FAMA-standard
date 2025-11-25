@@ -13,7 +13,7 @@ from PIL import Image
 import base64
 
 # =============================================
-# KONFIGURASI & TEMA FAMA CANTIK
+# KONFIGURASI & TEMA CANTIK + CHATBOX
 # =============================================
 st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="leaf", layout="centered", initial_sidebar_state="expanded")
 
@@ -26,32 +26,28 @@ st.markdown("""
     .big-warning {background: #ffebee; border-left: 8px solid #f44336; padding: 20px; border-radius: 12px; margin: 20px 0;}
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 55px; border: none;}
     h1,h2,h3 {color: #1B5E20;}
-    
-    /* CENTER LOGO FAMA DI SIDEBAR */
+
+    /* CENTER LOGO FAMA */
     .sidebar-logo-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 30px 0;
-        text-align: center;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 30px 0; text-align: center;
     }
-    .sidebar-logo-container img {
-        width: 100px;
-        margin-bottom: 15px;
+    .sidebar-logo-container img {width: 100px; margin-bottom: 15px;}
+    .sidebar-title {color: #ffffff; font-size: 1.8rem; font-weight: 900; margin: 0; text-shadow: 2px 2px 8px rgba(0,0,0,0.5);}
+    .sidebar-subtitle {color: #c8e6c9; font-size: 0.95rem; margin: 5px 0 0;}
+
+    /* CHATBOX DI BAWAH MENU */
+    .chat-container {
+        background: rgba(255,255,255,0.95); border-radius: 15px; padding: 12px;
+        margin: 15px 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        max-height: 380px; overflow-y: auto; font-size: 0.9rem;
     }
-    .sidebar-title {
-        color: #ffffff;
-        font-size: 1.8rem;
-        font-weight: 900;
-        margin: 0;
-        text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+    .chat-bubble {
+        background: #4CAF50; color: white; padding: 10px 15px; border-radius: 18px;
+        margin: 8px 0; max-width: 88%; word-wrap: break-word; display: inline-block;
     }
-    .sidebar-subtitle {
-        color: #c8e6c9;
-        font-size: 0.95rem;
-        margin: 5px 0 0;
-    }
+    .chat-bubble-admin {background: #1B5E20;}
+    .chat-time {font-size: 0.7rem; opacity: 0.8; margin-top: 4px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -68,7 +64,7 @@ ADMIN_CREDENTIALS = {
 }
 
 # =============================================
-# INIT DB
+# INIT DB + TABLE CHAT
 # =============================================
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -76,17 +72,19 @@ def init_db():
     cur.execute('''
         CREATE TABLE IF NOT EXISTS documents (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            content TEXT,
-            category TEXT,
-            file_name TEXT,
-            file_path TEXT,
-            thumbnail_path TEXT,
-            upload_date TEXT,
-            uploaded_by TEXT
+            title TEXT NOT NULL, content TEXT, category TEXT,
+            file_name TEXT, file_path TEXT, thumbnail_path TEXT,
+            upload_date TEXT, uploaded_by TEXT
         )
     ''')
     cur.execute('''CREATE TABLE IF NOT EXISTS admins (username TEXT PRIMARY KEY, password_hash TEXT)''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender TEXT NOT NULL, message TEXT NOT NULL,
+            timestamp TEXT NOT NULL, is_admin INTEGER DEFAULT 0
+        )
+    ''')
     try: cur.execute("SELECT content FROM documents LIMIT 1")
     except sqlite3.OperationalError: cur.execute("ALTER TABLE documents ADD COLUMN content TEXT")
     for u, h in ADMIN_CREDENTIALS.items():
@@ -98,7 +96,7 @@ if not os.path.exists(DB_NAME):
     init_db()
 
 # =============================================
-# FUNGSI UTAMA
+# FUNGSI ASAS
 # =============================================
 def save_thumbnail_safely(file, prefix="thumb"):
     if not file: return None
@@ -143,6 +141,25 @@ def get_docs():
     return [dict(row) for row in rows]
 
 # =============================================
+# CHAT FUNGSI
+# =============================================
+def get_chat_messages():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM chat_messages ORDER BY timestamp ASC")
+    rows = cur.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+def add_chat_message(sender, message, is_admin=False):
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("INSERT INTO chat_messages (sender, message, timestamp, is_admin) VALUES (?,?,?,?)",
+                 (sender, message, datetime.now().strftime("%Y-%m-%d %H:%M"), 1 if is_admin else 0))
+    conn.commit()
+    conn.close()
+
+# =============================================
 # STATISTIK
 # =============================================
 def show_stats():
@@ -151,7 +168,6 @@ def show_stats():
     baru = len([d for d in docs if d['upload_date'][:10] >= (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")]) if docs else 0
     latest = max((d['upload_date'][:10] for d in docs), default="Belum ada") if docs else "Belum ada"
     cat_count = {c: sum(1 for d in docs if d['category'] == c) for c in CATEGORIES}
-
     st.markdown(f"""
     <div style="background:linear-gradient(to bottom, #0066ff 0%, #0099ff 100%); border-radius:25px; padding:25px; color:white;">
         <h2 style="text-align:center;">STATISTIK RUJUKAN FAMA STANDARD</h2>
@@ -173,7 +189,7 @@ def show_stats():
     """, unsafe_allow_html=True)
 
 # =============================================
-# SIDEBAR — LOGO FAMA 100% CENTER!
+# SIDEBAR — LOGO + MENU + CHATBOX BAWAH MENU
 # =============================================
 with st.sidebar:
     st.markdown("""
@@ -186,9 +202,38 @@ with st.sidebar:
     
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
+    
+    st.markdown("---")
+    st.markdown("### Hubungi Admin FAMA")
+
+    # Papar mesej lama
+    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+    for msg in get_chat_messages():
+        admin_class = " chat-bubble-admin" if msg['is_admin'] else ""
+        align = "text-align: right;" if not msg['is_admin'] else "text-align: left;"
+        st.markdown(f"""
+        <div style="{align}">
+            <div class="chat-bubble{admin_class}">
+                <strong>{msg['sender']}</strong><br>
+                {msg['message']}
+                <div class="chat-time">{msg['timestamp'][-8:]}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Form hantar mesej
+    with st.form(key="chat_form", clear_on_submit=True):
+        nama = st.text_input("Nama", placeholder="Contoh: Ahmad")
+        pesan = st.text_area("Mesej", placeholder="Tanya apa-apa tentang standard FAMA...", height=80)
+        kirim = st.form_submit_button("Hantar")
+        if kirim and nama.strip() and pesan.strip():
+            add_chat_message(nama.strip(), pesan.strip())
+            st.success("Mesej dihantar!")
+            st.rerun()
 
 # =============================================
-# HALAMAN UTAMA & QR (sama)
+# HALAMAN UTAMA
 # =============================================
 if page == "Halaman Utama":
     st.markdown(f'''
@@ -226,6 +271,9 @@ if page == "Halaman Utama":
                         st.download_button("MUAT TURUN", f.read(), d['file_name'], use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
+# =============================================
+# PAPAR QR CODE
+# =============================================
 elif page == "Papar QR Code":
     st.markdown("<h1 style='text-align:center; color:#1B5E20;'>CARI & PAPAR QR CODE</h1>", unsafe_allow_html=True)
     show_stats()
@@ -270,7 +318,7 @@ elif page == "Papar QR Code":
                 """, unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — FULL EDIT + BACKUP
+# ADMIN PANEL
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -290,8 +338,9 @@ else:
 
     st.success(f"Selamat Datang, {st.session_state.user.upper()}")
 
-    tab1, tab2, tab3 = st.tabs(["Tambah Standard", "Senarai & Edit", "Backup & Recovery"])
+    tab1, tab2, tab3, tab_chat = st.tabs(["Tambah Standard", "Senarai & Edit", "Backup & Recovery", "Chat Pengguna"])
 
+    # TAB TAMBAH
     with tab1:
         file = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
         title = st.text_input("Tajuk Standard")
@@ -311,6 +360,7 @@ else:
                 conn.commit(); conn.close()
                 st.success("Berjaya disimpan!"); st.balloons()
 
+    # TAB EDIT
     with tab2:
         for d in get_docs():
             with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
@@ -366,6 +416,7 @@ else:
                             conn.commit(); conn.close()
                             st.success("Dipadam!"); st.rerun()
 
+    # TAB BACKUP
     with tab3:
         st.markdown("## Backup & Recovery (Anti-Hilang)")
         if not os.path.exists(DB_NAME) or len(get_docs()) == 0:
@@ -384,6 +435,27 @@ else:
             with open(DB_NAME, "wb") as f:
                 f.write(uploaded_db.getvalue())
             st.success("DATA DIPULIHKAN 100%!"); st.balloons(); st.rerun()
+
+    # TAB CHAT PENGGUNA
+    with tab_chat:
+        st.markdown("### Mesej daripada Pengguna")
+        messages = get_chat_messages()
+        if not messages:
+            st.info("Belum ada mesej")
+        else:
+            for msg in reversed(messages):
+                with st.container():
+                    col1, col2 = st.columns([3,1])
+                    with col1:
+                        st.markdown(f"**{msg['sender']}** • {msg['timestamp']}")
+                        st.info(msg['message'])
+                    with col2:
+                        reply = st.text_input("Balas", key=f"r_{msg['id']}")
+                        if st.button("Hantar", key=f"s_{msg['id']}"):
+                            if reply.strip():
+                                add_chat_message("Admin FAMA", reply.strip(), is_admin=True)
+                                st.success("Balasan dihantar!")
+                                st.rerun()
 
     if st.button("Log Keluar"):
         st.session_state.clear()
