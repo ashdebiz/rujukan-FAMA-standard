@@ -32,7 +32,7 @@ st.markdown("""
         padding: 30px 0; text-align: center;
     }
     .sidebar-logo-container img {width: 100px; margin-bottom: 15px;}
-    .sidebar-title {color: #ffffff; font-size: 1.8rem; font-weight: 900; margin: 0; text-shadow: 1px 1px 4px rgba(0,0,0,0.5);}
+    .sidebar-title {color: #ffffff; font-size: 1.8rem; font-weight: 900; margin: 0;}
     .sidebar-subtitle {color: #c8e6c9; font-size: 0.95rem; margin: 5px 0 0;}
 </style>
 """, unsafe_allow_html=True)
