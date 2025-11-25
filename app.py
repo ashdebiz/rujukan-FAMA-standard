@@ -46,7 +46,7 @@ st.markdown("""
         background: #4CAF50; color: white; padding: 10px 15px; border-radius: 18px;
         margin: 8px 0; max-width: 88%; word-wrap: break-word; display: inline-block;
     }
-    .chat-bubble-admin {background: #1B5E20;}
+    .chat-bubble-admin {background: #00e673;}
     .chat-time {font-size: 0.7rem; opacity: 0.8; margin-top: 4px;}
 </style>
 """, unsafe_allow_html=True)
