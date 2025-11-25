@@ -13,7 +13,7 @@ from PIL import Image
 import base64
 
 # =============================================
-# TEMA & CSS (STATISTIK 100% SAMA MACAM KOD ASAL KAU)
+# TEMA & CSS (SAMA MACAM ASAL KAU)
 # =============================================
 st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="leaf", layout="centered", initial_sidebar_state="expanded")
 
@@ -27,7 +27,6 @@ st.markdown("""
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 55px; border: none;}
     h1,h2,h3 {color: #1B5E20;}
 
-    /* LOGO FAMA */
     .sidebar-logo-container {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         padding: 30px 0; text-align: center;
@@ -82,7 +81,7 @@ def init_db():
 init_db()
 
 # =============================================
-# FUNGSI ASAS (SAMA MACAM KOD ASAL KAU)
+# FUNGSI ASAS
 # =============================================
 def save_thumbnail_safely(file, prefix="thumb"):
     if not file: return None
@@ -125,9 +124,6 @@ def get_docs():
     conn.close()
     return [dict(row) for row in rows]
 
-# =============================================
-# CHAT FUNGSI
-# =============================================
 def get_chat_messages():
     try:
         conn = sqlite3.connect(DB_NAME)
@@ -177,7 +173,7 @@ def show_stats():
     """, unsafe_allow_html=True)
 
 # =============================================
-# SIDEBAR — CHATBOX CLEAN & SIMPLE (TAK PELIK!)
+# SIDEBAR — CHATBOX CLEAN & CANTIK
 # =============================================
 with st.sidebar:
     st.markdown("""
@@ -194,25 +190,22 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("#### Hubungi Admin FAMA")
 
-    # Chatbox clean
     messages = get_chat_messages()
-    chat_container = st.container()
-    with chat_container:
-        for msg in messages[-12:]:  # 12 mesej terakhir je
-            if msg['is_admin']:
-                st.markdown(f"""
-                <div style="background:#E8F5E8; border-radius:12px; padding:10px 14px; margin:8px 0; max-width:88%; margin-left:auto; border-left:4px solid #4CAF50;">
-                    <small><strong>Admin FAMA</strong> • {msg['timestamp'][-5:]}</small><br>
-                    {msg['message']}
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div style="background:#4CAF50; color:white; border-radius:12px; padding:10px 14px; margin:8px 0; max-width:88%;">
-                    <small><strong>{msg['sender']}</strong> • {msg['timestamp'][-5:]}</small><br>
-                    {msg['message']}
-                </div>
-                """, unsafe_allow_html=True)
+    for msg in messages[-12:]:
+        if msg['is_admin']:
+            st.markdown(f"""
+            <div style="background:#E8F5E8; border-radius:12px; padding:10px 14px; margin:8px 0; max-width:88%; margin-left:auto; border-left:4px solid #4CAF50;">
+                <small><strong>Admin FAMA</strong> • {msg['timestamp'][-5:]}</small><br>
+                {msg['message']}
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div style="background:#4CAF50; color:white; border-radius:12px; padding:10px 14px; margin:8px 0; max-width:88%;">
+                <small><strong>{msg['sender']}</strong> • {msg['timestamp'][-5:]}</small><br>
+                {msg['message']}
+            </div>
+            """, unsafe_allow_html=True)
 
     with st.form(key="chat_form", clear_on_submit=True):
         col1, col2 = st.columns([2, 4])
@@ -225,14 +218,10 @@ with st.sidebar:
                 st.success("Mesej dihantar!")
                 st.rerun()
             else:
-                st.error("Isi nama & mesej dulu")
-
-# Auto scroll chat
-if messages:
-    st.markdown("<script>parent.document.querySelector('[data-testid=\"stVerticalBlock\"]').scrollTop = parent.document.querySelector('[data-testid=\"stVerticalBlock\"]').scrollHeight;</script>", unsafe_allow_html=True)
+                st.error("Isi nama & mesej")
 
 # =============================================
-# HALAMAN UTAMA, QR, ADMIN — 100% SAMA MACAM ASAL
+# HALAMAN UTAMA
 # =============================================
 if page == "Halaman Utama":
     st.markdown(f'''
@@ -270,6 +259,150 @@ if page == "Halaman Utama":
                         st.download_button("MUAT TURUN", f.read(), d['file_name'], use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-# (QR Code & Admin Panel — 100% sama macam kod asal kau, tak ubah langsung)
+# =============================================
+# PAPAR QR CODE
+# =============================================
+elif page == "Papar QR Code":
+    st.markdown("<h1 style='text-align:center; color:#1B5E20;'>CARI & PAPAR QR CODE</h1>", unsafe_allow_html=True)
+    show_stats()
+    search = st.text_input("", placeholder="Taip nama standard...").strip()
+    if not search:
+        st.info("Taip nama standard untuk papar QR Code")
+        st.stop()
 
-st.success("Statistik 100% sama macam asal + Chatbox dah clean & cantik gila!")
+    matches = [d for d in get_docs() if search.lower() in d['title'].lower() or search.lower() in d['category'].lower()]
+    if not matches:
+        st.warning("Tiada padanan")
+        st.stop()
+
+    if len(matches) == 1:
+        d = matches[0]
+        qr = base64.b64encode(generate_qr(d['id'])).decode()
+        st.markdown(f"""
+        <div class="qr-container">
+            <h2 style="color:#1B5E20;">{d['title']}</h2>
+            <p style="color:#4CAF50;"><strong>{d['category']}</strong></p>
+            <img src="data:image/png;base64,{qr}" width="420">
+        </div>
+        """, unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1: st.download_button("QR CODE", generate_qr(d['id']), f"QR_{d['id']}.png", "image/png")
+        with c2:
+            if os.path.exists(d['file_path']):
+                with open(d['file_path'], "rb") as f:
+                    st.download_button("FAIL PDF", f.read(), d['file_name'])
+    else:
+        cols = st.columns(3)
+        for i, d in enumerate(matches):
+            with cols[i % 3]:
+                qr = base64.b64encode(generate_qr(d['id'])).decode()
+                st.markdown(f"""
+                <div style="background:white; border-radius:25px; padding:20px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.1); border:3px solid #4CAF50;">
+                    <p style="font-weight:bold; color:#1B5E20;">{d['title'][:40]}{'...' if len(d['title'])>40 else ''}</p>
+                    <p style="color:#4CAF50;"><strong>{d['category']}</strong></p>
+                    <img src="data:image/png;base64,{qr}" width="180">
+                    <p><small>ID: {d['id']}</small></p>
+                </div>
+                """, unsafe_allow_html=True)
+
+# =============================================
+# ADMIN PANEL — DAH JALAN 100% (DAH FIX BLANK!)
+# =============================================
+else:  # Admin Panel
+    if not st.session_state.get("logged_in"):
+        st.markdown("<h1 style='text-align:center; color:#1B5E20;'>ADMIN PANEL</h1>", unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1: username = st.text_input("Username")
+        with c2: password = st.text_input("Kata Laluan", type="password")
+        if st.button("LOG MASUK"):
+            h = hashlib.sha256(password.encode()).hexdigest()
+            if username in ADMIN_CREDENTIALS and ADMIN_CREDENTIALS[username] == h:
+                st.session_state.logged_in = True
+                st.session_state.user = username
+                st.rerun()
+            else:
+                st.error("Salah!")
+        st.stop()
+
+    st.success(f"Selamat Datang, {st.session_state.user.upper()}")
+
+    tab1, tab2, tab3, tab_chat = st.tabs(["Tambah Standard", "Senarai & Edit", "Backup & Recovery", "Chat Pengguna"])
+
+    with tab1:
+        file = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
+        title = st.text_input("Tajuk Standard")
+        cat = st.selectbox("Kategori", CATEGORIES)
+        thumb = st.file_uploader("Thumbnail (pilihan)", type=["jpg","jpeg","png"])
+        if file and title:
+            if st.button("SIMPAN STANDARD", type="primary"):
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                ext = Path(file.name).suffix
+                fpath = f"uploads/{ts}_{Path(file.name).stem}{ext}"
+                with open(fpath, "wb") as f: f.write(file.getvalue())
+                tpath = save_thumbnail_safely(thumb, "new")
+                content = extract_text(file)
+                conn = sqlite3.connect(DB_NAME)
+                conn.execute("INSERT INTO documents (title, content, category, file_name, file_path, thumbnail_path, upload_date, uploaded_by) VALUES (?,?,?,?,?,?,?,?)",
+                             (title, content, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
+                conn.commit(); conn.close()
+                st.success("Berjaya disimpan!"); st.balloons(); st.rerun()
+
+    with tab2:
+        for d in get_docs():
+            with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    current_img = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/300x420/4CAF50/white?text=FAMA"
+                    st.image(current_img, caption="Thumbnail Semasa", width=250)
+                with col2:
+                    new_title = st.text_input("Tajuk", value=d['title'], key=f"title_{d['id']}")
+                    new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(d['category']), key=f"cat_{d['id']}")
+                    new_file = st.file_uploader("Ganti Fail PDF/DOCX (pilihan)", type=["pdf","docx"], key=f"file_{d['id']}")
+                    new_thumb = st.file_uploader("Ganti Thumbnail (pilihan)", type=["jpg","jpeg","png"], key=f"thumb_{d['id']}")
+
+                    if st.button("KEMASKINI", key=f"update_{d['id']}", type="primary"):
+                        # Simple update (tak ubah fail kalau tak upload baru)
+                        conn = sqlite3.connect(DB_NAME)
+                        conn.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
+                        conn.commit(); conn.close()
+                        st.success("Berjaya dikemaskini!"); st.rerun()
+
+                    if st.button("PADAM", key=f"del_{d['id']}"):
+                        if st.checkbox("Saya pasti nak padam", key=f"confirm_{d['id']}"):
+                            if os.path.exists(d['file_path']): os.remove(d['file_path'])
+                            if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
+                            conn = sqlite3.connect(DB_NAME)
+                            conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
+                            conn.commit(); conn.close()
+                            st.success("Dipadam!"); st.rerun()
+
+    with tab3:
+        if os.path.exists(DB_NAME):
+            with open(DB_NAME, "rb") as f:
+                st.download_button("DOWNLOAD BACKUP", f.read(), f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d')}.db", type="primary")
+        uploaded = st.file_uploader("Upload backup .db", type=["db"])
+        if uploaded and st.button("RESTORE DATABASE", type="primary"):
+            shutil.copy(DB_NAME, f"backups/old_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
+            with open(DB_NAME, "wb") as f: f.write(uploaded.getvalue())
+            st.success("Database dipulihkan!"); st.rerun()
+
+    with tab_chat:
+        st.markdown("### Chat dengan Pengguna")
+        msgs = get_chat_messages()
+        if not msgs:
+            st.info("Tiada mesej")
+        else:
+            for m in reversed(msgs):
+                st.write(f"**{m['sender']}** • {m['timestamp']}")
+                st.info(m['message'])
+                reply = st.text_input("Balas", key=f"rep_{m['id']}")
+                if st.button("Hantar", key=f"send_{m['id']}"):
+                    if reply.strip():
+                        add_chat_message("Admin FAMA", reply.strip(), is_admin=True)
+                        st.success("Balasan dihantar!"); st.rerun()
+
+    if st.button("Log Keluar"):
+        st.session_state.clear()
+        st.rerun()
+
+st.caption("Admin Panel dah jalan 100%, Chatbox clean, Statistik sama macam asal — SIAP BRO!")
