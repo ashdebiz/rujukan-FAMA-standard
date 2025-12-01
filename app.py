@@ -14,7 +14,7 @@ from PIL import Image
 import base64
 
 # =============================================
-# CONFIG & CSS (SAMA MACAM ASAL KAU)
+# CONFIG & CSS
 # =============================================
 st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="leaf", layout="centered", initial_sidebar_state="expanded")
 
@@ -37,7 +37,7 @@ for f in ["uploads", "thumbnails", "backups"]:
     os.makedirs(f, exist_ok=True)
 
 DB_NAME = "fama_standards.db"
-CATEGORIES = ["Keratan Bunga", "Sayur-sayaran", "Buah-buahan", "Lain-lain"]
+CATEGORIES = ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"]
 
 ADMIN_CREDENTIALS = {
     "admin": hashlib.sha256("fama2025".encode()).hexdigest(),
@@ -106,7 +106,7 @@ def clear_all_chat():
     st.rerun()
 
 # =============================================
-# STATISTIK BIRU CANTIK (SAMA MACAM ASAL)
+# STATISTIK
 # =============================================
 def show_stats():
     docs = get_docs()
@@ -117,7 +117,7 @@ def show_stats():
     st.markdown(f"""
     <div style="background:linear-gradient(to bottom, #0066ff 0%, #0099ff 100%); border-radius:25px; padding:25px; color:white; margin:20px 0;">
         <h2 style="text-align:center;">STATISTIK RUJUKAN FAMA STANDARD</h2>
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(minmax(200px, 1fr))); gap:20px; text-align:center;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px; text-align:center;">
             <div style="background:rgba(255,255,255,0.15); border-radius:18px; padding:18px;">
                 <h1 style="margin:0; font-size:2rem;">{total}</h1><p>JUMLAH</p>
             </div>
@@ -129,13 +129,13 @@ def show_stats():
             </div>
         </div>
         <div style="margin-top:25px; display:grid; grid-template-columns: repeat(4,1fr); gap:15px;">
-            {''.join(f'<div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:12px;"><strong>{c}</strong><br>{cat_count[c]}</div>' for c in CATEGORIES)}
+            {''.join(f'<div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:12px;"><strong>{c}</strong><br>{cat_count.get(c,0)}</div>' for c in CATEGORIES)}
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 # =============================================
-# SIDEBAR (SAMA MACAM ASAL)
+# SIDEBAR
 # =============================================
 with st.sidebar:
     st.markdown("""
@@ -149,8 +149,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("#### Hubungi Admin FAMA")
 
-    messages = get_chat_messages()
-    for msg in messages[-12:]:
+    for msg in get_chat_messages()[-12:]:
         if msg['is_admin']:
             st.markdown(f'<div style="background:#E8F5E8; border-radius:12px; padding:10px 14px; margin:8px 0; max-width:88%; margin-left:auto; border-left:4px solid #4CAF50;"><small><strong>Admin FAMA</strong> • {msg["timestamp"][-5:]}</small><br>{msg["message"]}</div>', unsafe_allow_html=True)
         else:
@@ -167,7 +166,7 @@ with st.sidebar:
             st.rerun()
 
 # =============================================
-# HALAMAN UTAMA — 100% SAMA MACAM ASAL KAU
+# HALAMAN UTAMA — 100% SAMA MACAM ASAL
 # =============================================
 if page == "Halaman Utama":
     st.markdown('<div style="position:relative; border-radius:25px; overflow:hidden; box-shadow:0 15px 40px rgba(27,94,32,0.5); margin:20px 0;"><img src="https://w7.pngwing.com/pngs/34/259/png-transparent-fruits-and-vegetables.png?w=1400&h=500&fit=crop" style="width:100%; height:300px; object-fit:cover;"><div style="position:absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, rgba(27,94,32,0.85), rgba(76,175,80,0.75));"></div><div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;"><h1 style="color:white; font-size:3.3rem; font-weight:900;">RUJUKAN FAMA STANDARD</h1><p style="color:#e8f5e8; font-size:1.5rem;">Keluaran Hasil Pertanian Tempatan</p></div></div>', unsafe_allow_html=True)
@@ -199,7 +198,7 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# PAPAR QR CODE (SAMA MACAM ASAL)
+# PAPAR QR CODE
 # =============================================
 elif page == "Papar QR Code":
     st.markdown("<h1 style='text-align:center; color:#1B5E20;'>CARI & PAPAR QR CODE</h1>", unsafe_allow_html=True)
@@ -212,31 +211,18 @@ elif page == "Papar QR Code":
     if not matches:
         st.warning("Tiada padanan")
         st.stop()
-    if len(matches) == 1:
-        d = matches[0]
-        qr_img = qrcode.make(f"https://rujukan-fama-standard.streamlit.app/?doc={d['id']}")
+    for d in matches:
+        qr = qrcode.QRCode(box_size=15, border=8)
+        qr.add_data(f"https://rujukan-fama-standard.streamlit.app/?doc={d['id']}")
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="#1B5E20", back_color="white")
         buf = io.BytesIO()
-        qr_img.save(buf, "PNG")
-        qr = base64.b64encode(buf.getvalue()).decode()
-        st.markdown(f'<div class="qr-container"><h2 style="color:#1B5E20;">{d["title"]}</h2><p style="color:#4CAF50;"><strong>{d["category"]}</strong></p><img src="data:image/png;base64,{qr}" width="420"></div>', unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1: st.download_button("QR CODE", buf.getvalue(), f"QR_{d['id']}.png", "image/png")
-        with col2:
-            if os.path.exists(d['file_path']):
-                with open(d['file_path'], "rb") as f:
-                    st.download_button("FAIL PDF", f.read(), d['file_name'])
-    else:
-        cols = st.columns(3)
-        for i, d in enumerate(matches):
-            with cols[i % 3]:
-                qr_img = qrcode.make(f"https://rujukan-fama-standard.streamlit.app/?doc={d['id']}")
-                buf = io.BytesIO()
-                qr_img.save(buf, "PNG")
-                qr = base64.b64encode(buf.getvalue()).decode()
-                st.markdown(f'<div style="background:white; border-radius:25px; padding:20px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.1); border:3px solid #4CAF50;"><p style="font-weight:bold; color:#1B5E20;">{d["title"][:40]}{"..." if len(d["title"])>40 else ""}</p><p style="color:#4CAF50;"><strong>{d["category"]}</strong></p><img src="data:image/png;base64,{qr}" width="180"><p><small>ID: {d["id"]}</small></p></div>', unsafe_allow_html=True)
+        img.save(buf, "PNG")
+        b64 = base64.b64encode(buf.getvalue()).decode()
+        st.markdown(f'<div class="qr-container"><h2 style="color:#1B5E20;">{d["title"]}</h2><p style="color:#4CAF50;"><strong>{d["category"]}</strong></p><img src="data:image/png;base64,{b64}" width="400"></div>', unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — SEMUA BUTANG DAH JALAN 1000%
+# ADMIN PANEL — FIX 100% TIADA LAGI ValueError
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -286,7 +272,13 @@ else:
                 with col2:
                     with st.form(key=f"form_{d['id']}"):
                         new_title = st.text_input("Tajuk", value=d['title'])
-                        new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(d['category']))
+                        # FIX ERROR DI SINI — KALAU KATEGORI TAK JUMPA, PAKAI INDEX 0
+                        try:
+                            idx = CATEGORIES.index(d['category'])
+                        except ValueError:
+                            idx = 0
+                        new_cat = st.selectbox("Kategori", CATEGORIES, index=idx)
+                        
                         c1, c2 = st.columns(2)
                         if c1.form_submit_button("KEMASKINI", type="primary"):
                             conn = sqlite3.connect(DB_NAME)
@@ -336,7 +328,7 @@ else:
             if c2.button("BATAL"):
                 st.session_state.confirm_clear = False
                 st.rerun()
-        st.markdown("---")
+
         for m in reversed(get_chat_messages()):
             sender = "Admin FAMA" if m['is_admin'] else m['sender']
             st.markdown(f"**{sender}** • {m['timestamp']}")
@@ -351,3 +343,4 @@ else:
     if st.button("Log Keluar"):
         st.session_state.clear()
         st.rerun()
+
