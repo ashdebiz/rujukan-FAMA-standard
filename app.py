@@ -294,7 +294,7 @@ if page == "Halaman Utama":
             <div class="stat-box"><h1 style="margin:0;font-size:2.2rem;color:#C8E6C9;">{baru}</h1><p style="margin:8px 0;font-size:1.3rem;">BARU (30 HARI)</p></div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:25px;margin-top:45px;">
-            {''.join(f'<div class="stat-box"><strong style="font-size:1.4rem;">{cat}</strong><h2 style="margin:12px 0;font-size:1.3;color:#E8F5E8;">{cat_count[cat]}</h2></div>' for cat in CATEGORIES)}
+            {''.join(f'<div class="stat-box"><strong style="font-size:1.2rem;">{cat}</strong><h2 style="margin:12px 0;font-size:1.3;color:#E8F5E8;">{cat_count[cat]}</h2></div>' for cat in CATEGORIES)}
         </div>
     </div>
     """, unsafe_allow_html=True)
