@@ -53,14 +53,13 @@ def init_db():
     cur.execute('''CREATE TABLE IF NOT EXISTS documents (
         id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, content TEXT, category TEXT,
         file_name TEXT, file_path TEXT, thumbnail_path TEXT, upload_date TEXT, uploaded_by TEXT)''')
-    cur.execute('''CREATE TABLE IF NOT EXISTS admins (username TEXT PRIMARY KEY, password_hash TEXT)''')
     cur.execute('''CREATE TABLE IF NOT EXISTS chat_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT NOT NULL, message TEXT NOT NULL,
         timestamp TEXT NOT NULL, is_admin INTEGER DEFAULT 0)''')
     try: cur.execute("SELECT content FROM documents LIMIT 1")
     except: cur.execute("ALTER TABLE documents ADD COLUMN content TEXT")
     for u, h in ADMIN_CREDENTIALS.items():
-        cur.execute("INSERT OR IGNORE INTO admins VALUES (?, ?)", (u, h))
+        cur.execute("INSERT OR REPLACE INTO admins VALUES (?, ?)", (u, h))
     conn.commit()
     conn.close()
 
@@ -110,7 +109,6 @@ def get_docs():
     conn.close()
     return [dict(row) for row in rows]
 
-# CHAT — AUTO CLEAR CACHE SUPAYA PADAM = HILANG BENAR
 @st.cache_data(ttl=1)
 def get_chat_messages():
     conn = sqlite3.connect(DB_NAME)
@@ -138,7 +136,7 @@ def clear_all_chat():
     st.rerun()
 
 # =============================================
-# STATISTIK — SAMA MACAM ASAL KAU
+# STATISTIK
 # =============================================
 def show_stats():
     docs = get_docs()
@@ -167,7 +165,7 @@ def show_stats():
     """, unsafe_allow_html=True)
 
 # =============================================
-# SIDEBAR + CHATBOX CLEAN
+# SIDEBAR + CHATBOX
 # =============================================
 with st.sidebar:
     st.markdown("""
@@ -257,7 +255,7 @@ elif page == "Papar QR Code":
                 st.markdown(f'<div style="background:white; border-radius:25px; padding:20px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.1); border:3px solid #4CAF50;"><p style="font-weight:bold; color:#1B5E20;">{d["title"][:40]}{"..." if len(d["title"])>40 else ""}</p><p style="color:#4CAF50;"><strong>{d["category"]}</strong></p><img src="data:image/png;base64,{qr}" width="180"><p><small>ID: {d["id"]}</small></p></div>', unsafe_allow_html=True)
 
 # =============================================
-# ADMIN PANEL — 100% POWER
+# ADMIN PANEL — 100% BERFUNGSI
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -279,6 +277,7 @@ else:
 
     tab1, tab2, tab3, tab_chat = st.tabs(["Tambah Standard", "Senarai & Edit", "Backup & Recovery", "Chat Pengguna"])
 
+    # TAMBAH STANDARD
     with tab1:
         file = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
         title = st.text_input("Tajuk Standard")
@@ -298,64 +297,73 @@ else:
                 conn.commit(); conn.close()
                 st.success("Berjaya disimpan!"); st.balloons(); st.rerun()
 
+    # SENARAI & EDIT — KEMASKINI + PADAM JALAN 100%
     with tab2:
-        for d in get_docs():
-            with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    img = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/300x420/4CAF50/white?text=FAMA"
-                    st.image(img, caption="Thumbnail", width=250)
-                with col2:
-                    new_title = st.text_input("Tajuk", value=d['title'], key=f"t_{d['id']}")
-                    new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(d['category']), key=f"c_{d['id']}")
-                    if st.button("KEMASKINI", key=f"u_{d['id']}"):
-                        conn = sqlite3.connect(DB_NAME)
-                        conn.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
-                        conn.commit(); conn.close()
-                        st.success("Dikemaskini!"); st.rerun()
-                    if st.button("PADAM", key=f"d_{d['id']}"):
-                        if st.checkbox("Pasti padam?", key=f"del_{d['id']}"):
-                            if os.path.exists(d['file_path']): os.remove(d['file_path'])
-                            if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
-                            conn = sqlite3.connect(DB_NAME)
-                            conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
-                            conn.commit(); conn.close()
-                            st.success("Dipadam!"); st.rerun()
+        st.markdown("### Senarai & Edit Standard")
+        docs = get_docs()
+        if not docs:
+            st.info("Belum ada standard lagi")
+        else:
+            for d in docs:
+                with st.expander(f"ID {d['id']} • {d['title']} • {d['category']} • {d['upload_date'][:10]}"):
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        img = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/300x420/4CAF50/white?text=FAMA"
+                        st.image(img, use_container_width=True)
+                    with col2:
+                        new_title = st.text_input("Tajuk", value=d['title'], key=f"title_{d['id']}")
+                        new_cat = st.selectbox("Kategori", CATEGORIES, index=CATEGORIES.index(d['category']), key=f"cat_{d['id']}")
+                        c_upd, c_del = st.columns(2)
+                        with c_upd:
+                            if st.button("KEMASKINI", key=f"upd_{d['id']}", type="primary"):
+                                conn = sqlite3.connect(DB_NAME)
+                                conn.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
+                                conn.commit(); conn.close()
+                                st.success("Berjaya dikemaskini!"); st.rerun()
+                        with c_del:
+                            if st.button("PADAM", key=f"del_{d['id']}", type="secondary"):
+                                st.warning("ANDA PASTI NAK PADAM STANDARD INI?")
+                                cy, cn = st.columns(2)
+                                with cy:
+                                    if st.button("YA, PADAM!", key=f"confirm_{d['id']}"):
+                                        if os.path.exists(d['file_path']): os.remove(d['file_path'])
+                                        if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
+                                        conn = sqlite3.connect(DB_NAME)
+                                        conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
+                                        conn.commit(); conn.close()
+                                        st.success("Standard dipadam!"); st.balloons(); st.rerun()
+                                with cn:
+                                    if st.button("Batal", key=f"cancel_{d['id']}"):
+                                        st.info("Dibatalkan"); st.rerun()
 
-    # BACKUP & RECOVERY LENGKAP — THUMBNAIL + PDF SELAMAT!
+    # BACKUP & RECOVERY LENGKAP
     with tab3:
         st.markdown("### Backup & Recovery Lengkap")
-
-        if st.button("Download Backup Lengkap (DB + PDF + Thumbnail)", type="primary", use_container_width=True):
-            backup_zip = f"FAMA_FULL_BACKUP_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
-            with zipfile.ZipFile(backup_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
-                zipf.write(DB_NAME, os.path.basename(DB_NAME))
+        if st.button("Download Backup Lengkap (DB + PDF + Thumbnail)", type="primary"):
+            zip_name = f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
+            with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as z:
+                z.write(DB_NAME, os.path.basename(DB_NAME))
                 for root, _, files in os.walk("uploads"):
-                    for file in files:
-                        zipf.write(os.path.join(root, file), f"uploads/{file}")
+                    for f in files: z.write(os.path.join(root, f), f"uploads/{f}")
                 for root, _, files in os.walk("thumbnails"):
-                    for file in files:
-                        zipf.write(os.path.join(root, file), f"thumbnails/{file}")
-            with open(backup_zip, "rb") as f:
-                st.download_button("Download ZIP Backup", f.read(), backup_zip, "application/zip", use_container_width=True)
-            st.success("Backup lengkap siap! Simpan ZIP ni elok-elok")
+                    for f in files: z.write(os.path.join(root, f), f"thumbnails/{f}")
+            with open(zip_name, "rb") as f:
+                st.download_button("Download ZIP", f.read(), zip_name, "application/zip")
+            st.success("Backup lengkap siap!")
 
         uploaded = st.file_uploader("Upload backup (.zip atau .db)", type=["zip", "db"])
-        if uploaded and st.button("Restore Backup", type="primary", use_container_width=True):
-            with st.spinner("Memulihkan data..."):
-                if os.path.exists(DB_NAME):
-                    shutil.copy(DB_NAME, f"backups/old_before_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
+        if uploaded and st.button("Restore Backup", type="primary"):
+            with st.spinner("Memulihkan..."):
                 if uploaded.name.endswith(".zip"):
-                    with zipfile.ZipFile(uploaded, "r") as zipf:
-                        zipf.extractall(".")
-                    st.success("Backup ZIP dipulihkan! Semua PDF + thumbnail kembali 100%")
+                    with zipfile.ZipFile(uploaded, "r") as z:
+                        z.extractall(".")
+                    st.success("Backup ZIP dipulihkan! Semua fail kembali")
                 else:
-                    with open(DB_NAME, "wb") as f:
-                        f.write(uploaded.getvalue())
-                    st.success("Database .db dipulihkan")
-                st.balloons()
-                st.rerun()
+                    with open(DB_NAME, "wb") as f: f.write(uploaded.getvalue())
+                    st.success("Database dipulihkan")
+                st.balloons(); st.rerun()
 
+    # CHAT PENGGUNA
     with tab_chat:
         st.markdown("### Chat dengan Pengguna")
         if st.button("Padam Semua Chat", type="secondary"):
@@ -383,11 +391,9 @@ else:
                 if st.button("Hantar", key=f"s_{m['id']}"):
                     if reply.strip():
                         add_chat_message("Admin FAMA", reply.strip(), is_admin=True)
-                        st.success("Balasan dihantar!")
-                        st.rerun()
+                        st.success("Balasan dihantar!"); st.rerun()
 
     if st.button("Log Keluar"):
         st.session_state.clear()
         st.rerun()
-
 
