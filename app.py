@@ -24,7 +24,7 @@ st.markdown("""
     /* BACKGROUND BUAH & SAYUR YANG KAU RINDU TU BRO! */
     .header-bg {
         background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), 
-                    url('https://images.unsplash.com/photo-1547514701-42782101795e?q=80&w=2070&auto=format&fit=crop');
+                    url('https://imagine-public.x.ai/imagine-public/images/f0a77a24-6d97-4af7-919f-7a43a07ddff1.png?cache=1?q=80&w=2070&auto=format&fit=crop');
         background-size: cover;
         background-position: center;
         border-radius: 30px;
