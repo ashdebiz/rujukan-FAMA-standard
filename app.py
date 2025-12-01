@@ -482,4 +482,4 @@ else:
         st.session_state.clear()
         st.rerun()
 
-st.caption("© Rujukan Standard FAMA • Auto Responsive • Info Boleh Edit • Backup & Restore • 2025")
+st.caption("© Rujukan Standard FAMA • Created On 2025 By Santana Techo")
