@@ -9,7 +9,7 @@ import qrcode
 from io import BytesIO
 
 # =============================================
-# CONFIG & DESIGN CANTIK GILA + BUAH-SAYUR BACKGROUND
+# CONFIG & DESIGN CANTIK GILA
 # =============================================
 st.set_page_config(page_title="Rujukan Standard FAMA", page_icon="leaf", layout="centered", initial_sidebar_state="expanded")
 
@@ -112,7 +112,7 @@ def add_chat_message(sender, message, is_admin=False):
     st.cache_data.clear()
 
 # =============================================
-# TANGKAP QR CODE LINK — INI YANG BUAT SPESIFIK!
+# TANGKAP QR CODE LINK
 # =============================================
 query_params = st.experimental_get_query_params()
 direct_doc_id = query_params.get("doc", [None])[0]
@@ -148,7 +148,7 @@ with st.sidebar:
                 st.rerun()
 
 # =============================================
-# DIRECT DARI QR CODE — SPESIFIK KOMODITI SAHAJA!
+# DIRECT DARI QR CODE
 # =============================================
 if direct_doc_id and page != "Admin Panel":
     try:
@@ -167,11 +167,11 @@ if direct_doc_id and page != "Admin Panel":
                 st.markdown("<div class='card'>", unsafe_allow_html=True)
                 c1, c2 = st.columns([1, 2])
                 with c1:
-                    img = doc['thumbnail_path'] if doc['thumbnail_path'] and os.path.exists(doc['thumbnail_path']) else "https://via.placeholder.com/400x600/4CAF50/white?text=FAMA+STANDARD"
+                    img = doc['thumbnail_path'] if doc['thumbnail_path'] and os.path.exists(doc['thumbnail_path']) else "https://via.placeholder.com/400x600/4CAF50/white?text=FAMA"
                     st.image(img, use_container_width=True)
                 with c2:
                     st.markdown(f"<h2 style='color:#1B5E20; margin-top:0;'>{doc['title']}</h2>", unsafe_allow_html=True)
-                    st.markdown(f"**Kategori:** {doc['category']} • **ID:** {doc['id']} • **Upload:** {doc['upload_date'][:10]} • {doc['uploaded_by']}")
+                    st.markdown(f"**Kategori:** {doc['category']} • **ID:** {doc['id']} • **Upload:** {doc['upload_date'][:10]}")
                     if os.path.exists(doc['file_path']):
                         with open(doc['file_path'], "rb") as f:
                             st.download_button("MUAT TURUN PDF SEKARANG", f.read(), doc['file_name'], 
@@ -179,7 +179,7 @@ if direct_doc_id and page != "Admin Panel":
                 st.markdown("</div>", unsafe_allow_html=True)
             st.stop()
     except:
-        st.error("Standard tidak dijumpai atau ID tidak sah.")
+        st.error("Standard tidak dijumpai.")
 
 # =============================================
 # HALAMAN UTAMA
@@ -222,8 +222,6 @@ if page == "Halaman Utama":
 
     hasil = [d for d in docs if (kat == "Semua" or d['category'] == kat) and (not cari or cari.lower() in d['title'].lower())]
 
-    st.markdown(f"<h3 style='text-align:center;color:#1B5E20;'>Ditemui {len(hasil)} Standard</h3>", unsafe_allow_html=True)
-
     for d in hasil:
         with st.container():
             st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -240,13 +238,13 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# PAPAR QR CODE — LINK SPESIFIK 100%
+# PAPAR QR CODE
 # =============================================
 elif page == "Papar QR Code":
     st.markdown("<h1 style='text-align:center;color:#1B5E20;'>PAPAR QR CODE STANDARD FAMA</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center;font-size:1.5rem;color:#2E7D32;margin:30px 0;'>Taip ID atau nama komoditi untuk generate QR Code</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center;font-size:1.5rem;color:#2E7D32;margin:30px 0;'>Taip ID atau nama komoditi</p>", unsafe_allow_html=True)
 
-    search = st.text_input("Cari ID / Tajuk", placeholder="Contoh: 25 atau Durian Musang King", key="qr_search")
+    search = st.text_input("Cari ID / Tajuk", placeholder="Contoh: 25 atau Durian", key="qr_search")
 
     if search:
         docs = get_docs()
@@ -260,9 +258,7 @@ elif page == "Papar QR Code":
         if matches:
             for d in matches:
                 st.markdown(f"<div class='qr-container'>", unsafe_allow_html=True)
-                
-                # LINK YANG BETUL — PASTIKAN TUKAR KALAU NAMA APP LAIN!
-                base_url = "https://rujukan-fama-standard.streamlit.app"
+                base_url = "https://rujukan-fama-standard.streamlit.app"  # tukar kalau nama app lain
                 qr_link = f"{base_url}?doc={d['id']}"
 
                 qr = qrcode.QRCode(version=1, box_size=16, border=6)
@@ -275,19 +271,18 @@ elif page == "Papar QR Code":
                 col1, col2 = st.columns([1,2])
                 with col1:
                     st.image(buf.getvalue(), width=350)
-                    st.download_button("Download QR Code", buf.getvalue(), 
-                                     f"QR_FAMA_{d['id']}_{d['title'][:20].replace(' ', '_')}.png", "image/png")
+                    st.download_button("Download QR", buf.getvalue(), f"QR_FAMA_{d['id']}.png", "image/png")
                 with col2:
                     st.markdown(f"<h2 style='color:#1B5E20;margin-top:60px;'>{d['title']}</h2>", unsafe_allow_html=True)
                     st.write(f"**ID:** {d['id']} | **Kategori:** {d['category']}")
-                    st.code(qr_link, language=None)
-                    st.success("Bila di-scan → terus tunjuk standard ini sahaja!")
+                    st.code(qr_link)
+                    st.success("Scan → terus buka standard ini sahaja!")
                 st.markdown("</div>", unsafe_allow_html=True)
         else:
-            st.error("Tiada standard dijumpai!")
+            st.error("Tiada dijumpai!")
 
 # =============================================
-# ADMIN PANEL
+# ADMIN PANEL — DAH ADA EDIT + CHAT BALAS!
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -301,20 +296,20 @@ else:
                 st.session_state.user = user
                 st.rerun()
             else:
-                st.error("Salah username atau kata laluan!")
+                st.error("Salah username/password!")
         st.stop()
 
     st.success(f"Selamat Datang, {st.session_state.user.upper()}!")
     st.balloons()
 
-    tab1, tab2, tab3 = st.tabs(["Tambah Standard", "Edit & Padam", "Backup"])
+    tab1, tab2, tab3 = st.tabs(["Tambah Standard", "Edit & Padam", "Chat + Backup"])
 
     with tab1:
         file = st.file_uploader("Upload PDF", type=["pdf"])
         title = st.text_input("Tajuk Standard")
         cat = st.selectbox("Kategori", CATEGORIES)
-        thumb = st.file_uploader("Thumbnail (pilihan)", type=["jpg","jpeg","png"])
-        if file and title and st.button("SIMPAN STANDARD", type="primary"):
+        thumb = st.file_uploader("Thumbnail", type=["jpg","jpeg","png"])
+        if file and title and st.button("SIMPAN", type="primary"):
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             fpath = f"uploads/{ts}_{file.name}"
             with open(fpath, "wb") as f: f.write(file.getvalue())
@@ -324,31 +319,53 @@ else:
                          (title,cat,file.name,fpath,tpath,datetime.now().strftime("%Y-%m-%d %H:%M"),st.session_state.user))
             conn.commit()
             conn.close()
-            st.success("Berjaya ditambah!")
-            st.balloons()
+            st.success("Ditambah!")
             st.rerun()
 
     with tab2:
-        search = st.text_input("Cari tajuk/ID untuk edit")
         docs = get_docs()
-        if search:
-            s = search.lower()
-            docs = [d for d in docs if s in d['title'].lower() or s in str(d['id'])]
         for d in docs:
-            with st.expander(f"ID {d['id']} • {d['title']}"):
-                if st.button("PADAM", key=f"del{d['id']}"):
-                    if st.checkbox("Confirm padam?", key=f"cf{d['id']}"):
-                        if os.path.exists(d['file_path']): os.remove(d['file_path'])
-                        if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
+            with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.image(d['thumbnail_path'] or "https://via.placeholder.com/300", use_container_width=True)
+                with col2:
+                    new_title = st.text_input("Tajuk", d['title'], key=f"title_{d['id']}")
+                    new_cat = st.selectbox("Kategori", CATEGORIES, CATEGORIES.index(d['category']), key=f"cat_{d['id']}")
+                    if st.button("KEMASKINI", key=f"update_{d['id']}"):
                         conn = sqlite3.connect(DB_NAME)
-                        conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
+                        conn.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
                         conn.commit()
                         conn.close()
-                        st.success("Dipadam!")
+                        st.success("Dikemaskini!")
                         st.rerun()
+                    if st.button("PADAM STANDARD", key=f"del_{d['id']}"):
+                        if st.checkbox("Confirm padam selamanya?", key=f"confirm_{d['id']}"):
+                            if os.path.exists(d['file_path']): os.remove(d['file_path'])
+                            if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
+                            conn = sqlite3.connect(DB_NAME)
+                            conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
+                            conn.commit()
+                            conn.close()
+                            st.success("Dipadam!")
+                            st.rerun()
 
     with tab3:
-        if st.button("Download Backup ZIP", type="primary"):
+        st.markdown("### Balas Mesej Pengguna")
+        messages = get_chat_messages()
+        for msg in reversed(messages):
+            if msg['is_admin']:
+                st.success(f"Admin: {msg['message']}")
+            else:
+                st.info(f"{msg['sender']}: {msg['message']}")
+                balas = st.text_input("Balas mesej ini", key=f"balas_{msg['id']}")
+                if st.button("Hantar Balasan", key=f"send_{msg['id']}"):
+                    add_chat_message("Admin FAMA", balas, is_admin=True)
+                    st.success("Balasan dihantar!")
+                    st.rerun()
+
+        st.markdown("### Backup Database")
+        if st.button("Download Backup ZIP Sekarang", type="primary"):
             zipname = f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
             with zipfile.ZipFile(zipname, "w") as z:
                 z.write(DB_NAME)
@@ -358,7 +375,7 @@ else:
                             for file in files:
                                 z.write(os.path.join(root, file))
             with open(zipname, "rb") as f:
-                st.download_button("Download Backup", f.read(), zipname)
+                st.download_button("Download Backup", f.read(), zipname, "application/zip")
             st.success("Backup siap!")
 
     if st.button("Log Keluar"):
