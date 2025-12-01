@@ -156,7 +156,7 @@ with st.sidebar:
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
     st.markdown("---")
-    st.markdown("### Hubungi Admin FAMA")
+    st.markdown("<div style='color:white;'>### Hubungi Admin FAMA</div>")
     for msg in get_chat_messages()[-8:]:
         if msg['is_admin']:
             st.markdown(f'<div style="background:#E8F5E8;border-radius:12px;padding:10px;margin:6px 0;text-align:right;border-left:5px solid #4CAF50;"><small><b>Admin</b> {msg["timestamp"][-5:]}</small><br>{msg["message"]}</div>', unsafe_allow_html=True)
