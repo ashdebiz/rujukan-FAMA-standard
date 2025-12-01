@@ -40,7 +40,7 @@ for f in ["uploads", "thumbnails"]:
     os.makedirs(f, exist_ok=True)
 
 DB_NAME = "fama_standards.db"
-CATEGORIES = ["Keratan Bunga", "Sayur-sayalan", "Buah-buahan", "Lain-lain"]
+CATEGORIES = ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"]
 
 ADMIN_CREDENTIALS = {
     "admin": hashlib.sha256("fama2025".encode()).hexdigest(),
