@@ -25,7 +25,7 @@ st.markdown("""
     h1,h2,h3 {color: #1B5E20;}
     .header-bg {
         background: linear-gradient(rgba(0,0,0,0.58), rgba(0,0,0,0.58)), 
-                    url('https://imagine-public.x.ai/imagine-public/images/f0a77a24-6d97-4af7-919f-7a43a07ddff1.png?cache=1?q=80&w=2070&auto=format&fit=crop');
+                    url('https://imagine-public.x.ai/imagine-public/images/f0a77a24-6d97-4af7-919f-7a43a07ddff1.png?q=80&w=2070&auto=format&fit=crop');
         background-size: cover; background-position: center; border-radius: 35px;
         padding: 90px 20px; text-align: center; margin: 20px 0 50px 0;
         box-shadow: 0 30px 70px rgba(0,0,0,0.45);
