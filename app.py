@@ -35,6 +35,13 @@ st.markdown("""
     .restore-box {background: #FFEBEE; border: 4px dashed #D32F2F; border-radius: 20px; padding: 30px; margin: 30px 0;}
     .pagination {display: flex; justify-content: center; gap: 15px; margin: 30px 0;}
     .page-btn {background: #4CAF50 !important; color: white !important; padding: 12px 24px !important; border-radius: 12px !important;}
+
+    /* INI YANG BARU — WARNA TULISAN HUBUNGI ADMIN FAMA JADI PUTIH! */
+    .hubungi-admin-title h3 {
+        color: white !important;
+        font-weight: 900;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.6);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -156,7 +163,7 @@ with st.sidebar:
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
     st.markdown("---")
-    st.markdown("#### Hubungi Admin FAMA")
+    st.markdown("<div class='hubungi-admin-title'><h3>Hubungi Admin FAMA</h3></div>", unsafe_allow_html=True)
     for msg in get_chat_messages()[-8:]:
         if msg['is_admin']:
             st.markdown(f'<div style="background:#E8F5E8;border-radius:12px;padding:10px;margin:6px 0;text-align:right;border-left:5px solid #4CAF50;"><small><b>Admin</b> {msg["timestamp"][-5:]}</small><br>{msg["message"]}</div>', unsafe_allow_html=True)
