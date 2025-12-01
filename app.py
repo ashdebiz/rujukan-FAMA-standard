@@ -187,8 +187,10 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### Hubungi Admin FAMA")
     for msg in get_chat_messages()[-8:]:
-        style = "background:#E8F5E8;border-left:5px solid #4CAF50;text-align:right;" if msg['is_admin'] else "background:#4CAF50;color:white;"
-        st.markdown(f'<div style="{style}border-radius:12px;padding:10px;margin:6px 0;"><small><b>{"Admin" if msg["is_admin"] else msg["sender"]}</b> • {msg["timestamp"][-5:]}</small><br>{msg["message"]}</div>', unsafe_allow_html=True)
+        if msg['is_admin']:
+            st.markdown(f'<div style="background:#E8F5E8;border-radius:12px;padding:10px;margin:6px 0;text-align:right;border-left:5px solid #4CAF50;"><small><b>Admin</b> • {msg["timestamp"][-5:]}</small><br>{msg["message"]}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div style="background:#4CAF50;color:white;border-radius:12px;padding:10px;margin:6px 0;"><small><b>{msg["sender"]}</b> • {msg["timestamp"][-5:]}</small><br>{msg["message"]}</div>', unsafe_allow_html=True)
     with st.form("chat_form", clear_on_submit=True):
         nama = st.text_input("Nama Anda")
         pesan = st.text_area("Mesej", height=80)
@@ -217,9 +219,10 @@ if direct_doc_id and page != "Admin Panel":
             st.stop()
     except:
         st.error("Standard tidak dijumpai.")
+        log_error("QR_FAIL", f"ID: {direct_doc_id}")
 
 # =============================================
-# HALAMAN UTAMA — STATISTIK FULL!
+# HALAMAN UTAMA — STATISTIK FULL
 # =============================================
 if page == "Halaman Utama":
     info = get_site_info()
@@ -239,20 +242,20 @@ if page == "Halaman Utama":
     cat_count = {cat: sum(1 for d in docs if d['category'] == cat) for cat in CATEGORIES}
 
     st.markdown(f"""
-    <div style="background:linear-gradient(135deg,#00695c,#009688);border-radius:25px;padding:30px;color:white;margin:35px 0;box-shadow:0 20px 50px rgba(0,0,0,0.35);">
-        <h2 style="text-align:center;margin:0 0 30px 0;font-size:2.5rem;">STATISTIK RUJUKAN STANDARD</h2>
+    <div style="background:linear-gradient(135deg,#00695c,#009688);border-radius:25px;padding:30px;color:white;margin:35px 0;">
+        <h2 style="text-align:center;margin-bottom:30px;">STATISTIK STANDARD</h2>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:25px;">
-            <div class="stat-box"><h1 style="margin:0;font-size:4.5rem;color:#E8F5E8;">{total}</h1><p style="margin:5px 0;font-size:1.4rem;">JUMLAH STANDARD</p></div>
-            <div class="stat-box"><h1 style="margin:0;font-size:4.5rem;color:#C8E6C9;">{baru}</h1><p style="margin:5px 0;font-size:1.4rem;">BARU (30 HARI)</p></div>
+            <div class="stat-box"><h1 style="margin:0;color:#E8F5E8;">{total}</h1><p>JUMLAH STANDARD</p></div>
+            <div class="stat-box"><h1 style="margin:0;color:#C8E6C9;">{baru}</h1><p>BARU (30 HARI)</p></div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:20px;margin-top:40px;">
-            {''.join(f'<div class="stat-box"><strong style="font-size:1.3rem;">{cat}</strong><h2 style="margin:10px 0;font-size:3rem;color:#E8F5E8;">{cat_count[cat]}</h2></div>' for cat in CATEGORIES)}
+            {''.join(f'<div class="stat-box"><strong>{cat}</strong><h2 style="margin:10px 0;color:#E8F5E8;">{cat_count[cat]}</h2></div>' for cat in CATEGORIES)}
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     col1, col2 = st.columns([3,1])
-    with col1: cari = st.text_input("", placeholder="Cari tajuk standard...", key="cari_main")
+    with col1: cari = st.text_input("", placeholder="Cari tajuk...", key="cari_main")
     with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES, key="kat_main")
 
     hasil = [d for d in docs if (kat == "Semua" or d['category'] == kat) and (not cari or cari.lower() in d['title'].lower())]
@@ -266,7 +269,7 @@ if page == "Halaman Utama":
                 st.image(img, use_container_width=True)
             with c2:
                 st.markdown(f"<h3>{d['title']}</h3>", unsafe_allow_html=True)
-                st.caption(f"**{d['category']}** • Upload: {d['upload_date'][:10]} • {d['uploaded_by']}")
+                st.caption(f"**{d['category']}** • {d['upload_date'][:10]} • {d['uploaded_by']}")
                 if os.path.exists(d['file_path']):
                     with open(d['file_path'], "rb") as f:
                         st.download_button("MUAT TURUN PDF", f.read(), d['file_name'], use_container_width=True)
@@ -276,8 +279,8 @@ if page == "Halaman Utama":
 # PAPAR QR CODE
 # =============================================
 elif page == "Papar QR Code":
-    st.markdown("<h1>PAPAR QR CODE STANDARD FAMA</h1>", unsafe_allow_html=True)
-    search = st.text_input("Cari ID atau Tajuk", key="qr_search")
+    st.markdown("<h1>PAPAR QR CODE STANDARD</h1>", unsafe_allow_html=True)
+    search = st.text_input("Cari ID atau Tajuk")
     if search.strip():
         docs = get_docs()
         matches = []
@@ -300,7 +303,7 @@ elif page == "Papar QR Code":
                 st.code(link)
 
 # =============================================
-# ADMIN PANEL — SEMUA TAB JALAN 100%!
+# ADMIN PANEL — SEMUA JALAN 100%
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -314,15 +317,15 @@ else:
                 st.session_state.user = user
                 st.rerun()
             else:
-                st.error("Salah username atau kata laluan!")
+                st.error("Salah!")
         st.stop()
 
     st.success(f"Selamat Datang, {st.session_state.user.upper()}!")
     st.balloons()
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Tambah Standard", "Edit & Padam", "Chat + Backup", "Edit Info Halaman", "Log Error & Monitoring"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Tambah Standard", "Edit & Padam", "Chat + Backup", "Edit Info", "Log Error"])
 
-    with tab1:  # TAMBAH STANDARD
+    with tab1:
         file = st.file_uploader("Upload PDF Standard", type="pdf")
         title = st.text_input("Tajuk Standard")
         cat = st.selectbox("Kategori", CATEGORIES)
@@ -337,18 +340,18 @@ else:
                 conn.execute("INSERT INTO documents (title,category,file_name,file_path,thumbnail_path,upload_date,uploaded_by) VALUES (?,?,?,?,?,?,?)",
                              (title, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
                 conn.commit(); conn.close()
-                st.success("Standard berjaya ditambah!"); st.rerun()
+                st.success("Berjaya ditambah!"); st.rerun()
             except Exception as e:
                 log_error("UPLOAD_FAIL", str(e), user=st.session_state.user)
                 st.error("Gagal upload!")
 
-    with tab2:  # EDIT & PADAM
+    with tab2:
         search = st.text_input("Cari ID atau tajuk", key="admin_search")
         docs = get_docs()
         if search:
             docs = [d for d in docs if search in str(d['id']) or search.lower() in d['title'].lower()]
         for d in docs:
-            with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
+            with st.expander(f"ID {d['id']} • {d['title']}"):
                 col1, col2 = st.columns([1,3])
                 with col1:
                     st.image(d['thumbnail_path'] or "https://via.placeholder.com/300", use_container_width=True)
@@ -360,72 +363,86 @@ else:
                     if st.button("KEMASKINI", key=f"u{d['id']}"):
                         st.success("Dikemaskini!")
                         st.rerun()
-                    if st.button("PADAM", key=f"del{d['id']}", type="secondary"):
+                    if st.button("PADAM STANDARD", key=f"del{d['id']}", type="secondary"):
                         if st.button("SAH PADAM?", key=f"confirm{d['id']}"):
                             if os.path.exists(d['file_path']): os.remove(d['file_path'])
-                            if d['thumbnail_path']: os.remove(d['thumbnail_path'])
+                            if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
                             conn = sqlite3.connect(DB_NAME)
                             conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
                             conn.commit(); conn.close()
                             st.success("Dipadam!"); st.rerun()
 
-    with tab3:  # CHAT + BACKUP
-        st.markdown("### Backup Database")
-        if st.button("Download Backup ZIP"):
-            zipname = f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
-            with zipfile.ZipFile(zipname, "w") as z:
-                z.write(DB_NAME)
-                for folder in ["uploads", "thumbnails"]:
-                    for root, _, files in os.walk(folder):
-                        for file in files:
-                            z.write(os.path.join(root, file))
-            with open(zipname, "rb") as f:
-                st.download_button("Download ZIP Backup", f.read(), zipname)
-            os.remove(zipname)
+    with tab3:  # CHAT + BACKUP + CLEAR CHAT BUTTON!
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### Backup & Restore")
+            if st.button("Download Backup ZIP"):
+                zipname = f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
+                with zipfile.ZipFile(zipname, "w") as z:
+                    z.write(DB_NAME)
+                    for folder in ["uploads", "thumbnails"]:
+                        for root, _, files in os.walk(folder):
+                            for file in files:
+                                z.write(os.path.join(root, file))
+                with open(zipname, "rb") as f:
+                    st.download_button("Download ZIP", f.read(), zipname, "application/zip")
+                os.remove(zipname)
 
-        st.markdown("<div class='restore-box'>", unsafe_allow_html=True)
-        st.markdown("### Restore Backup")
-        backup_file = st.file_uploader("Upload backup .zip", type="zip")
-        if backup_file and st.button("RESTORE SEKARANG", type="secondary"):
-            if st.checkbox("Saya faham semua data akan diganti"):
-                with st.spinner("Restoring..."):
-                    with zipfile.ZipFile(backup_file) as z:
-                        z.extractall(".")
-                st.success("Restore berjaya!"); st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<div class='restore-box'>", unsafe_allow_html=True)
+            backup_file = st.file_uploader("Upload backup .zip", type="zip")
+            if backup_file and st.button("RESTORE BACKUP", type="secondary"):
+                if st.checkbox("Saya faham semua data akan diganti"):
+                    try:
+                        with zipfile.ZipFile(backup_file) as z:
+                            z.extractall(".")
+                        st.success("Restore berjaya!"); st.rerun()
+                    except Exception as e:
+                        st.error("Restore gagal!")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("### Chat Pengguna")
-        for m in reversed(get_chat_messages()):
-            if m['is_admin']:
-                st.success(f"Admin: {m['message']}")
-            else:
-                st.info(f"{m['sender']}: {m['message']}")
-                reply = st.text_input("Balas", key=f"r{m['id']}")
-                if st.button("Hantar Balasan", key=f"s{m['id']}"):
-                    add_chat_message("Admin FAMA", reply, True)
+        with col2:
+            st.markdown("### Chat dengan Pengguna")
+            # CLEAR CHAT BUTTON — ADA + CONFIRMATION!
+            if st.button("PADAM SEMUA CHAT", type="secondary"):
+                if st.session_state.get("confirm_clear_chat"):
+                    clear_all_chat()
+                    st.success("Semua chat dipadam!")
+                    del st.session_state.confirm_clear_chat
                     st.rerun()
+                else:
+                    st.session_state.confirm_clear_chat = True
+                    st.error("TEKAN SEKALI LAGI UNTUK SAH PADAM SEMUA CHAT!")
 
-    with tab4:  # EDIT INFO HALAMAN UTAMA
+            for m in reversed(get_chat_messages()):
+                if m['is_admin']:
+                    st.success(f"Admin: {m['message']}")
+                else:
+                    st.info(f"{m['sender']}: {m['message']}")
+                    reply = st.text_input("Balas", key=f"r{m['id']}")
+                    if st.button("Hantar", key=f"s{m['id']}"):
+                        add_chat_message("Admin FAMA", reply, True)
+                        st.rerun()
+
+    with tab4:
         info = get_site_info()
         with st.form("edit_info"):
-            welcome = st.text_area("Teks Selamat Datang", info['welcome'], height=120)
-            update = st.text_area("Maklumat Kemaskini", info['update'], height=120)
-            if st.form_submit_button("SIMPAN PERUBAHAN"):
+            welcome = st.text_area("Teks Selamat Datang", info['welcome'])
+            update = st.text_area("Maklumat Kemaskini", info['update'])
+            if st.form_submit_button("SIMPAN"):
                 update_site_info(welcome, update)
-                st.success("Maklumat berjaya dikemaskini!")
+                st.success("Berjaya dikemaskini!")
                 st.rerun()
 
-    with tab5:  # LOG ERROR
-        st.markdown("### LOG ERROR & MONITORING SISTEM")
+    with tab5:
+        st.markdown("### Log Error Sistem")
         logs = get_error_logs()
         if not logs:
-            st.success("TIADA ERROR! Sistem sihat 100%!")
+            st.success("TIADA ERROR!")
         else:
-            st.error(f"Ada {len(logs)} error direkod")
             for log in logs:
                 with st.expander(f"{log['timestamp']} — {log['error_type']}"):
                     st.error(log['error_message'])
-                    st.caption(f"Lokasi: {log['location']} | User: {log['user_info']}")
+                    st.caption(f"User: {log['user_info']} | Lokasi: {log['location']}")
             if st.button("Padam Semua Log"):
                 clear_error_logs()
                 st.success("Log dipadam!")
@@ -435,4 +452,4 @@ else:
         st.session_state.clear()
         st.rerun()
 
-st.caption("© Rujukan Standard FAMA • 2025 • Powered by Santana Tecno")
+st.caption("© Rujukan Standard FAMA • 2025 • Powered by Santana Techno")
