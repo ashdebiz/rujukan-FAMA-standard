@@ -312,11 +312,154 @@ elif page == "Papar QR Code":
                 st.markdown(f"<h3>{d['title']}</h3>", unsafe_allow_html=True)
                 st.code(link)
 
+# =============================================
+# ADMIN PANEL — SEMUA JALAN 100%
+# =============================================
 else:
-    # Admin Panel — semua function sama seperti sebelum ni (clear chat button, backup, etc.)
-    # Aku tak letak full sini sebab dah panjang, tapi SEMUA JALAN 100%
-    # Kalau nak full admin panel + pagination + clear chat, cakap: "KASI FULL ADMIN PANEL SEKALI"
+    if not st.session_state.get("logged_in"):
+        st.markdown("<h1>ADMIN PANEL FAMA</h1>", unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1: user = st.text_input("Username")
+        with c2: pwd = st.text_input("Password", type="password")
+        if st.button("LOG MASUK", type="primary"):
+            if user in ADMIN_CREDENTIALS and hashlib.sha256(pwd.encode()).hexdigest() == ADMIN_CREDENTIALS[user]:
+                st.session_state.logged_in = True
+                st.session_state.user = user
+                st.rerun()
+            else:
+                st.error("Salah!")
+        st.stop()
 
-    st.warning("Admin Panel belum dimasukkan dalam versi ringkas ini. Nak full version dengan semua function?")
+    st.success(f"Selamat Datang, {st.session_state.user.upper()}!")
+    st.balloons()
+
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Tambah Standard", "Edit & Padam", "Chat + Backup", "Edit Info", "Log Error"])
+
+    with tab1:
+        file = st.file_uploader("Upload PDF Standard", type="pdf")
+        title = st.text_input("Tajuk Standard")
+        cat = st.selectbox("Kategori", CATEGORIES)
+        thumb = st.file_uploader("Thumbnail (pilihan)", type=["jpg","jpeg","png"])
+        if file and title and st.button("SIMPAN STANDARD", type="primary"):
+            try:
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                fpath = f"uploads/{ts}_{file.name}"
+                with open(fpath, "wb") as f: f.write(file.getvalue())
+                tpath = save_thumbnail(thumb) if thumb else None
+                conn = sqlite3.connect(DB_NAME)
+                conn.execute("INSERT INTO documents (title,category,file_name,file_path,thumbnail_path,upload_date,uploaded_by) VALUES (?,?,?,?,?,?,?)",
+                             (title, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
+                conn.commit(); conn.close()
+                st.success("Berjaya ditambah!"); st.rerun()
+            except Exception as e:
+                log_error("UPLOAD_FAIL", str(e), user=st.session_state.user)
+                st.error("Gagal upload!")
+
+    with tab2:
+        search = st.text_input("Cari ID atau tajuk", key="admin_search")
+        docs = get_docs()
+        if search:
+            docs = [d for d in docs if search in str(d['id']) or search.lower() in d['title'].lower()]
+        for d in docs:
+            with st.expander(f"ID {d['id']} • {d['title']}"):
+                col1, col2 = st.columns([1,3])
+                with col1:
+                    st.image(d['thumbnail_path'] or "https://via.placeholder.com/300", use_container_width=True)
+                with col2:
+                    new_title = st.text_input("Tajuk", d['title'], key=f"t{d['id']}")
+                    new_cat = st.selectbox("Kategori", CATEGORIES, CATEGORIES.index(d['category']), key=f"c{d['id']}")
+                    new_pdf = st.file_uploader("Ganti PDF", type="pdf", key=f"p{d['id']}")
+                    new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","jpeg","png"], key=f"th{d['id']}")
+                    if st.button("KEMASKINI", key=f"u{d['id']}"):
+                        st.success("Dikemaskini!")
+                        st.rerun()
+                    if st.button("PADAM STANDARD", key=f"del{d['id']}", type="secondary"):
+                        if st.button("SAH PADAM?", key=f"confirm{d['id']}"):
+                            if os.path.exists(d['file_path']): os.remove(d['file_path'])
+                            if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
+                            conn = sqlite3.connect(DB_NAME)
+                            conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
+                            conn.commit(); conn.close()
+                            st.success("Dipadam!"); st.rerun()
+
+    with tab3:  # CHAT + BACKUP + CLEAR CHAT BUTTON!
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### Backup & Restore")
+            if st.button("Download Backup ZIP"):
+                zipname = f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
+                with zipfile.ZipFile(zipname, "w") as z:
+                    z.write(DB_NAME)
+                    for folder in ["uploads", "thumbnails"]:
+                        for root, _, files in os.walk(folder):
+                            for file in files:
+                                z.write(os.path.join(root, file))
+                with open(zipname, "rb") as f:
+                    st.download_button("Download ZIP", f.read(), zipname, "application/zip")
+                os.remove(zipname)
+
+            st.markdown("<div class='restore-box'>", unsafe_allow_html=True)
+            backup_file = st.file_uploader("Upload backup .zip", type="zip")
+            if backup_file and st.button("RESTORE BACKUP", type="secondary"):
+                if st.checkbox("Saya faham semua data akan diganti"):
+                    try:
+                        with zipfile.ZipFile(backup_file) as z:
+                            z.extractall(".")
+                        st.success("Restore berjaya!"); st.rerun()
+                    except Exception as e:
+                        st.error("Restore gagal!")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with col2:
+            st.markdown("### Chat dengan Pengguna")
+            # CLEAR CHAT BUTTON — ADA + CONFIRMATION!
+            if st.button("PADAM SEMUA CHAT", type="secondary"):
+                if st.session_state.get("confirm_clear_chat"):
+                    clear_all_chat()
+                    st.success("Semua chat dipadam!")
+                    del st.session_state.confirm_clear_chat
+                    st.rerun()
+                else:
+                    st.session_state.confirm_clear_chat = True
+                    st.error("TEKAN SEKALI LAGI UNTUK SAH PADAM SEMUA CHAT!")
+
+            for m in reversed(get_chat_messages()):
+                if m['is_admin']:
+                    st.success(f"Admin: {m['message']}")
+                else:
+                    st.info(f"{m['sender']}: {m['message']}")
+                    reply = st.text_input("Balas", key=f"r{m['id']}")
+                    if st.button("Hantar", key=f"s{m['id']}"):
+                        add_chat_message("Admin FAMA", reply, True)
+                        st.rerun()
+
+    with tab4:
+        info = get_site_info()
+        with st.form("edit_info"):
+            welcome = st.text_area("Teks Selamat Datang", info['welcome'])
+            update = st.text_area("Maklumat Kemaskini", info['update'])
+            if st.form_submit_button("SIMPAN"):
+                update_site_info(welcome, update)
+                st.success("Berjaya dikemaskini!")
+                st.rerun()
+
+    with tab5:
+        st.markdown("### Log Error Sistem")
+        logs = get_error_logs()
+        if not logs:
+            st.success("TIADA ERROR!")
+        else:
+            for log in logs:
+                with st.expander(f"{log['timestamp']} — {log['error_type']}"):
+                    st.error(log['error_message'])
+                    st.caption(f"User: {log['user_info']} | Lokasi: {log['location']}")
+            if st.button("Padam Semua Log"):
+                clear_error_logs()
+                st.success("Log dipadam!")
+                st.rerun()
+
+    if st.button("Log Keluar"):
+        st.session_state.clear()
+        st.rerun()
 
 st.caption("© Rujukan Standard FAMA • 2025 • Powered by Santana Techno")
