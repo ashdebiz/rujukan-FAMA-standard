@@ -390,4 +390,4 @@ else:
         st.session_state.clear()
         st.rerun()
 
-st.success("FAMA STANDARD KAU DAH SIAP 100% — LEGEND GILA BRO!")
+st.success
