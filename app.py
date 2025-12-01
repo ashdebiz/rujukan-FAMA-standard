@@ -226,7 +226,7 @@ if direct_doc_id and page != "Admin Panel":
 # =============================================
 if page == "Halaman Utama":
     info = get_site_info()
-    st.markdown("<div class='header-bg'><h1 style='color:white;'>RUJUKAN STANDARD FAMA</h1><p style='color:white;font-size:1.8rem;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='header-bg'><h1 style='color:white;'>RUJUKAN STANDARD FAMA</h1><p style='text-align:center;color:white;font-size:1.8rem;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
     
     st.markdown(f"""
     <div class='info-box'>
