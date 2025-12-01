@@ -5,13 +5,11 @@ import shutil
 import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
-import PyPDF2
-from docx import Document
-import io
 import hashlib
 import qrcode
 from PIL import Image
 import base64
+import io
 
 # =============================================
 # CONFIG & CSS
@@ -68,7 +66,8 @@ def save_thumbnail(file):
         path = f"thumbnails/thumb_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
         img.save(path, "JPEG", quality=90)
         return path
-    except: return None
+    except:
+        return None
 
 def get_docs():
     conn = sqlite3.connect(DB_NAME)
@@ -166,7 +165,7 @@ with st.sidebar:
             st.rerun()
 
 # =============================================
-# HALAMAN UTAMA — 100% SAMA MACAM ASAL
+# HALAMAN UTAMA
 # =============================================
 if page == "Halaman Utama":
     st.markdown('<div style="position:relative; border-radius:25px; overflow:hidden; box-shadow:0 15px 40px rgba(27,94,32,0.5); margin:20px 0;"><img src="https://w7.pngwing.com/pngs/34/259/png-transparent-fruits-and-vegetables.png?w=1400&h=500&fit=crop" style="width:100%; height:300px; object-fit:cover;"><div style="position:absolute; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, rgba(27,94,32,0.85), rgba(76,175,80,0.75));"></div><div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;"><h1 style="color:white; font-size:3.3rem; font-weight:900;">RUJUKAN FAMA STANDARD</h1><p style="color:#e8f5e8; font-size:1.5rem;">Keluaran Hasil Pertanian Tempatan</p></div></div>', unsafe_allow_html=True)
@@ -198,31 +197,7 @@ if page == "Halaman Utama":
             st.markdown("</div>", unsafe_allow_html=True)
 
 # =============================================
-# PAPAR QR CODE
-# =============================================
-elif page == "Papar QR Code":
-    st.markdown("<h1 style='text-align:center; color:#1B5E20;'>CARI & PAPAR QR CODE</h1>", unsafe_allow_html=True)
-    show_stats()
-    search = st.text_input("", placeholder="Taip nama standard...").strip()
-    if not search:
-        st.info("Taip nama standard untuk papar QR Code")
-        st.stop()
-    matches = [d for d in get_docs() if search.lower() in d['title'].lower() or search.lower() in d['category'].lower()]
-    if not matches:
-        st.warning("Tiada padanan")
-        st.stop()
-    for d in matches:
-        qr = qrcode.QRCode(box_size=15, border=8)
-        qr.add_data(f"https://rujukan-fama-standard.streamlit.app/?doc={d['id']}")
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="#1B5E20", back_color="white")
-        buf = io.BytesIO()
-        img.save(buf, "PNG")
-        b64 = base64.b64encode(buf.getvalue()).decode()
-        st.markdown(f'<div class="qr-container"><h2 style="color:#1B5E20;">{d["title"]}</h2><p style="color:#4CAF50;"><strong>{d["category"]}</strong></p><img src="data:image/png;base64,{b64}" width="400"></div>', unsafe_allow_html=True)
-
-# =============================================
-# ADMIN PANEL — FIX 100% TIADA LAGI ValueError
+# ADMIN PANEL — SEKARANG BOLEH KEMASKINI THUMBNAIL + STANDARD!
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -244,8 +219,9 @@ else:
 
     tab1, tab2, tab3, tab_chat = st.tabs(["Tambah Standard", "Senarai & Edit", "Backup & Recovery", "Chat Pengguna"])
 
+    # TAMBAH STANDARD
     with tab1:
-        file = st.file_uploader("PDF/DOCX", type=["pdf","docx"])
+        file = st.file_uploader("Upload PDF/DOCX", type=["pdf","docx"])
         title = st.text_input("Tajuk Standard")
         cat = st.selectbox("Kategori", CATEGORIES)
         thumb = st.file_uploader("Thumbnail (pilihan)", type=["jpg","jpeg","png"])
@@ -253,7 +229,7 @@ else:
             if st.button("SIMPAN STANDARD", type="primary"):
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 ext = Path(file.name).suffix
-                fpath = f"uploads/{ts}_{Path(file.name).stem}{ext}"
+                fpath = f"uploads/{ts}_{file.name}"
                 with open(fpath, "wb") as f: f.write(file.getvalue())
                 tpath = save_thumbnail(thumb) if thumb else None
                 conn = sqlite3.connect(DB_NAME)
@@ -262,41 +238,62 @@ else:
                 conn.commit(); conn.close()
                 st.success("Berjaya disimpan!"); st.balloons(); st.rerun()
 
+    # SENARAI & EDIT — BOLEH TUKAR THUMBNAIL + TAJUK + KATEGORI
     with tab2:
         for d in get_docs():
             with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
                 col1, col2 = st.columns([1,3])
                 with col1:
-                    img = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/300x420/4CAF50/white?text=FAMA"
-                    st.image(img, use_container_width=True)
+                    current_thumb = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/300x420/4CAF50/white?text=FAMA"
+                    st.image(current_thumb, use_container_width=True)
+                
                 with col2:
-                    with st.form(key=f"form_{d['id']}"):
-                        new_title = st.text_input("Tajuk", value=d['title'])
-                        # FIX ERROR DI SINI — KALAU KATEGORI TAK JUMPA, PAKAI INDEX 0
+                    with st.form(key=f"edit_form_{d['id']}"):
+                        new_title = st.text_input("Tajuk Standard", value=d['title'])
+                        
                         try:
                             idx = CATEGORIES.index(d['category'])
                         except ValueError:
                             idx = 0
                         new_cat = st.selectbox("Kategori", CATEGORIES, index=idx)
                         
-                        c1, c2 = st.columns(2)
-                        if c1.form_submit_button("KEMASKINI", type="primary"):
+                        new_thumb = st.file_uploader("Tukar Thumbnail (pilihan)", type=["jpg","jpeg","png"], key=f"thumb_{d['id']}")
+                        
+                        if new_thumb:
+                            st.image(new_thumb, caption="Preview Thumbnail Baru", width=200)
+                        
+                        col_upd, col_del = st.columns(2)
+                        
+                        if col_upd.form_submit_button("KEMASKINI SEMUA", type="primary"):
+                            # Simpan thumbnail baru kalau ada
+                            new_thumb_path = d['thumbnail_path']  # kekalkan lama kalau tak upload baru
+                            if new_thumb:
+                                # Padam thumbnail lama kalau ada
+                                if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']):
+                                    os.remove(d['thumbnail_path'])
+                                new_thumb_path = save_thumbnail(new_thumb)
+                            
                             conn = sqlite3.connect(DB_NAME)
-                            conn.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
-                            conn.commit(); conn.close()
-                            st.success("Dikemaskini!"); st.rerun()
-                        if c2.form_submit_button("PADAM", type="secondary"):
-                            if st.session_state.get(f"confirm_{d['id']}", False):
+                            conn.execute("UPDATE documents SET title=?, category=?, thumbnail_path=? WHERE id=?", 
+                                         (new_title, new_cat, new_thumb_path, d['id']))
+                            conn.commit()
+                            conn.close()
+                            st.success("Berjaya dikemaskini tajuk, kategori & thumbnail!")
+                            st.rerun()
+                        
+                        if col_del.form_submit_button("PADAM", type="secondary"):
+                            if st.session_state.get(f"confirm_del_{d['id']}", False):
                                 if os.path.exists(d['file_path']): os.remove(d['file_path'])
                                 if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
                                 conn = sqlite3.connect(DB_NAME)
                                 conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
                                 conn.commit(); conn.close()
-                                st.success("Dipadam!"); st.balloons(); st.rerun()
+                                st.success("Standard dipadam!"); st.balloons(); st.rerun()
                             else:
-                                st.session_state[f"confirm_{d['id']}"] = True
+                                st.session_state[f"confirm_del_{d['id']}"] = True
                                 st.warning("Tekan PADAM sekali lagi untuk confirm")
 
+    # BACKUP & RESTORE
     with tab3:
         if st.button("Download Backup Lengkap", type="primary"):
             zipname = f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
@@ -308,27 +305,20 @@ else:
                             for file in files:
                                 z.write(os.path.join(root, file), arcname=os.path.join(folder, file))
             with open(zipname, "rb") as f:
-                st.download_button("Download ZIP", f.read(), zipname, "application/zip")
-            st.success("Backup siap!")
+                st.download_button("Download ZIP Backup", f.read(), zipname, "application/zip")
+            st.success("Backup lengkap siap!")
 
-        uploaded = st.file_uploader("Upload backup .zip", type=["zip"])
-        if uploaded and st.button("RESTORE", type="primary"):
+        uploaded = st.file_uploader("Upload backup .zip untuk restore", type=["zip"])
+        if uploaded and st.button("RESTORE BACKUP", type="primary"):
             with zipfile.ZipFile(uploaded) as z:
                 z.extractall(".")
-            st.success("Berjaya dipulihkan!"); st.balloons(); st.rerun()
+            st.success("Semua data & gambar dipulihkan!"); st.balloons(); st.rerun()
 
+    # CHAT
     with tab_chat:
         if st.button("Padam Semua Chat"):
-            st.session_state.confirm_clear = True
-        if st.session_state.get("confirm_clear"):
-            st.error("PASTI NAK PADAM SEMUA?")
-            c1, c2 = st.columns(2)
-            if c1.button("YA, PADAM!"):
+            if st.button("Confirm Padam Semua"):
                 clear_all_chat()
-            if c2.button("BATAL"):
-                st.session_state.confirm_clear = False
-                st.rerun()
-
         for m in reversed(get_chat_messages()):
             sender = "Admin FAMA" if m['is_admin'] else m['sender']
             st.markdown(f"**{sender}** • {m['timestamp']}")
@@ -337,7 +327,7 @@ else:
             if st.button("Hantar", key=f"s_{m['id']}"):
                 if reply.strip():
                     add_chat_message("Admin FAMA", reply.strip(), is_admin=True)
-                    st.success("Dihantar!")
+                    st.success("Balasan dihantar!")
                     st.rerun()
 
     if st.button("Log Keluar"):
