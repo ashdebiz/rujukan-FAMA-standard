@@ -126,7 +126,7 @@ query_params = st.experimental_get_query_params()
 direct_doc_id = query_params.get("doc", [None])[0]
 
 with st.sidebar:
-    st.markdown("<div style='text-align:center;padding:25px 0;'><img src='https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png' width=120><h3 style='color:white;margin:10px 0;font-weight:900;'>FAMA STANDARD</h3></div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center;padding:25px 0;'><img src='https://upload.wikimedia.org/wikipedia/commons/4/4b/FAMA_logo.png' width=120><h3 style='color:white;margin:10px 0;font-weight:900;'>REGULASI PASARAN</h3></div>", unsafe_allow_html=True)
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
     st.markdown("---")
