@@ -10,7 +10,7 @@ import qrcode
 from io import BytesIO
 
 # =============================================
-# CONFIG + CSS RESPONSIVE TANPA ERROR
+# PAGE CONFIG + RESPONSIVE CSS (NO ERROR!)
 # =============================================
 st.set_page_config(
     page_title="Rujukan Standard FAMA",
@@ -43,13 +43,12 @@ st.markdown("""
     @media (max-width: 768px) {
         .card {padding: 15px;}
         .direct-card {padding: 20px;}
-        h1 {font-size: 3.2rem !important;}
     }
 </style>
 """, unsafe_allow_html=True)
 
 # =============================================
-# FOLDER + DATABASE + ERROR LOG
+# SETUP FOLDER & DATABASE
 # =============================================
 for folder in ["uploads", "thumbnails", "backup_temp"]:
     os.makedirs(folder, exist_ok=True)
@@ -57,6 +56,7 @@ for folder in ["uploads", "thumbnails", "backup_temp"]:
 DB_NAME = "fama_standards.db"
 CATEGORIES = ["Keratan Bunga", "Sayur-sayuran", "Buah-buahan", "Lain-lain"]
 
+# GANTI PASSWORD NI KALAU NAK LEBIH SELAMAT
 ADMIN_CREDENTIALS = {
     "admin": hashlib.sha256("fama2025".encode()).hexdigest(),
     "pengarah": hashlib.sha256("fama123".encode()).hexdigest()
@@ -74,39 +74,40 @@ def init_db():
         timestamp TEXT, is_admin INTEGER DEFAULT 0)""")
     c.execute("""CREATE TABLE IF NOT EXISTS site_info (
         id INTEGER PRIMARY KEY CHECK (id = 1),
-        welcome_text TEXT DEFAULT 'Selamat Datang ke Sistem Rujukan Standard FAMA',
-        update_info TEXT DEFAULT 'Semua standard komoditi telah dikemaskini sehingga Disember 2025')""")
+        welcome_text TEXT, update_info TEXT)""")
     c.execute("""CREATE TABLE IF NOT EXISTS error_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp TEXT, error_type TEXT, error_message TEXT,
-        location TEXT, user_info TEXT
-    )""")
-    c.execute("INSERT OR IGNORE INTO site_info (id) VALUES (1)")
+        location TEXT, user_info TEXT)""")
+    c.execute("INSERT OR IGNORE INTO site_info (id, welcome_text, update_info) VALUES (1, 'Selamat Datang ke Sistem Rujukan Standard FAMA', 'Semua standard telah dikemaskini sehingga Disember 2025')")
     conn.commit()
     conn.close()
 init_db()
 
 # =============================================
-# ERROR LOGGING
+# ERROR LOGGING SYSTEM
 # =============================================
-def log_error(error_type, error_message, location="", user_info="Unknown"):
+def log_error(error_type, message, location="", user="Unknown"):
     try:
         conn = sqlite3.connect(DB_NAME)
-        conn.execute("INSERT INTO error_logs (timestamp, error_type, error_message, location, user_info) VALUES (?,?,?,?,?)",
-                     (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), error_type, str(error_message)[:500], location, str(user_info)[:100]))
+        conn.execute("INSERT INTO error_logs (timestamp,error_type,error_message,location,user_info) VALUES (?,?,?,?,?)",
+                     (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), error_type, str(message)[:500], location, str(user)[:100]))
         conn.commit()
         conn.close()
     except:
         pass
 
 def get_error_logs():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM error_logs ORDER BY id DESC LIMIT 200")
-    rows = c.fetchall()
-    conn.close()
-    return [dict(row) for row in rows]
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM error_logs ORDER BY id DESC LIMIT 200")
+        rows = c.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    except:
+        return []
 
 def clear_error_logs():
     conn = sqlite3.connect(DB_NAME)
@@ -115,18 +116,18 @@ def clear_error_logs():
     conn.close()
 
 # =============================================
-# FUNGSI ASAS
+# HELPER FUNCTIONS
 # =============================================
-def save_thumbnail(file_obj):
-    if not file_obj: return None
+def save_thumbnail(file):
+    if not file: return None
     try:
-        img = Image.open(file_obj).convert("RGB")
+        img = Image.open(file).convert("RGB")
         img.thumbnail((400, 600))
         path = f"thumbnails/thumb_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.jpg"
         img.save(path, "JPEG", quality=95)
         return path
     except Exception as e:
-        log_error("THUMBNAIL_ERROR", str(e), "save_thumbnail()")
+        log_error("THUMBNAIL_FAIL", str(e))
         return None
 
 def get_docs():
@@ -159,15 +160,8 @@ def get_chat_messages():
 
 def add_chat_message(sender, message, is_admin=False):
     conn = sqlite3.connect(DB_NAME)
-    conn.execute("INSERT INTO chat_messages (sender, message, timestamp, is_admin) VALUES (?,?,?,?)",
+    conn.execute("INSERT INTO chat_messages (sender,message,timestamp,is_admin) VALUES (?,?,?,?)",
                  (sender, message, datetime.now().strftime("%Y-%m-%d %H:%M"), int(is_admin)))
-    conn.commit()
-    conn.close()
-    st.cache_data.clear()
-
-def clear_all_chat():
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute("DELETE FROM chat_messages")
     conn.commit()
     conn.close()
     st.cache_data.clear()
@@ -178,17 +172,17 @@ def get_site_info():
     c.execute("SELECT welcome_text, update_info FROM site_info WHERE id = 1")
     row = c.fetchone()
     conn.close()
-    return {"welcome": row[0] if row else "Selamat Datang", "update": row[1] if row else "Tiada maklumat"}
+    return {"welcome": row[0], "update": row[1]} if row else {"welcome": "Selamat Datang", "update": ""}
 
 def update_site_info(welcome, update):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("UPDATE site_info SET welcome_text = ?, update_info = ? WHERE id = 1", (welcome, update))
+    c.execute("UPDATE site_info SET welcome_text=?, update_info=? WHERE id=1", (welcome, update))
     conn.commit()
     conn.close()
 
 # =============================================
-# SIDEBAR + QR DIRECT
+# SIDEBAR & DIRECT QR
 # =============================================
 query_params = st.experimental_get_query_params()
 direct_doc_id = query_params.get("doc", [None])[0]
@@ -198,20 +192,18 @@ with st.sidebar:
     st.markdown("---")
     page = st.selectbox("Menu", ["Halaman Utama", "Papar QR Code", "Admin Panel"], label_visibility="collapsed")
     st.markdown("---")
-    st.markdown("### Hubungi Admin FAMA")
+    st.markdown("### Hubungi Admin")
     for msg in get_chat_messages()[-8:]:
         if msg['is_admin']:
-            st.markdown(f'<div style="background:#E8F5E8;border-radius:12px;padding:10px;margin:6px 0;text-align:right;border-left:5px solid #4CAF50;"><small><b>Admin</b> • {msg["timestamp"][-5:]}</small><br>{msg["message"]}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="background:#E8F5E8;border-radius:12px;padding:10px;margin:6px 0;text-align:right;"><small><b>Admin</b> • {msg["timestamp"][-5:]}</small><br>{msg["message"]}</div>', unsafe_allow_html=True)
         else:
             st.markdown(f'<div style="background:#4CAF50;color:white;border-radius:12px;padding:10px;margin:6px 0;"><small><b>{msg["sender"]}</b> • {msg["timestamp"][-5:]}</small><br>{msg["message"]}</div>', unsafe_allow_html=True)
     with st.form("chat_form", clear_on_submit=True):
         nama = st.text_input("Nama Anda")
         pesan = st.text_area("Mesej", height=80)
-        if st.form_submit_button("Hantar"):
-            if nama.strip() and pesan.strip():
-                add_chat_message(nama.strip(), pesan.strip())
-                st.success("Dihantar!")
-                st.rerun()
+        if st.form_submit_button("Hantar") and nama.strip() and pesan.strip():
+            add_chat_message(nama.strip(), pesan.strip())
+            st.success("Berjaya dihantar!")
 
 # =============================================
 # DIRECT QR ACCESS
@@ -220,24 +212,21 @@ if direct_doc_id and page != "Admin Panel":
     try:
         doc = get_doc_by_id(int(direct_doc_id))
         if doc:
-            st.markdown("<div class='direct-card'><h1>QR CODE BERJAYA!</h1><p>Standard dibuka secara langsung</p></div>", unsafe_allow_html=True)
-            c1, c2 = st.columns(2)
-            with c1:
+            st.markdown("<div class='direct-card'><h1>QR CODE BERJAYA DIBUKA!</h1><p>Standard komoditi dimuat secara langsung</p></div>", unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
+            with col1:
                 img = doc['thumbnail_path'] if doc['thumbnail_path'] and os.path.exists(doc['thumbnail_path']) else "https://via.placeholder.com/400x600/4CAF50/white?text=FAMA"
                 st.image(img, use_container_width=True)
-            with c2:
-                st.markdown(f"<h2 style='color:#1B5E20;margin-top:0;'>{doc['title']}</h2>", unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"<h2>{doc['title']}</h2>", unsafe_allow_html=True)
                 st.write(f"**Kategori:** {doc['category']} • **ID:** {doc['id']}")
                 if os.path.exists(doc['file_path']):
                     with open(doc['file_path'], "rb") as f:
-                        st.download_button("MUAT TURUN PDF", f.read(), doc['file_name'], type="primary", use_container_width=True)
+                        st.download_button("MUAT TURUN PDF", f.read(), doc['file_name'], "application/pdf", use_container_width=True)
             st.stop()
-        else:
-            log_error("QR_DOC_NOT_FOUND", f"ID: {direct_doc_id}", "QR Direct")
-            st.error("Standard tidak dijumpai.")
-    except Exception as e:
-        log_error("QR_DIRECT_ERROR", str(e), "QR Direct Access")
-        st.error("Ralat akses QR. Admin dimaklumkan.")
+    except:
+        st.error("Standard tidak dijumpai atau QR tidak sah.")
+        log_error("QR_ACCESS_FAIL", f"ID: {direct_doc_id}")
 
 # =============================================
 # HALAMAN UTAMA
@@ -245,37 +234,33 @@ if direct_doc_id and page != "Admin Panel":
 if page == "Halaman Utama":
     info = get_site_info()
     
-    st.markdown("<div class='header-bg'><h1 style='color:white;margin:0;'>RUJUKAN STANDARD FAMA</h1><p style='color:white;font-size:1.8rem;margin:15px 0 0 0;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='header-bg'><h1 style='color:white;'>RUJUKAN STANDARD FAMA</h1><p style='color:white;font-size:1.8rem;margin-top:10px;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
     
     st.markdown(f"""
     <div class='info-box'>
-        <h2 style='text-align:center;margin:0 0 15px 0;color:#1B5E20;'>Maklumat Terkini</h2>
-        <p style='text-align:center;font-size:1.3rem;font-weight:bold;color:#1B5E20;'>{info['welcome']}</p>
-        <p style='text-align:center;color:#2E7D32;font-style:italic;margin-top:15px;'>{info['update']}</p>
+        <h2 style='text-align:center;color:#1B5E20;'>Maklumat Terkini</h2>
+        <p style='text-align:center;font-weight:bold;font-size:1.3rem;color:#1B5E20;'>{info['welcome']}</p>
+        <p style='text-align:center;font-style:italic;color:#2E7D32;'>{info['update']}</p>
     </div>
     """, unsafe_allow_html=True)
 
     docs = get_docs()
     total = len(docs)
     baru = len([d for d in docs if (datetime.now() - datetime.strptime(d['upload_date'][:10], "%Y-%m-%d")).days <= 30])
-    cat_count = {c: sum(1 for d in docs if d['category'] == c) for c in CATEGORIES}
 
     st.markdown(f"""
-    <div style="background:linear-gradient(135deg,#00695c,#009688);border-radius:25px;padding:30px;color:white;margin:35px 0;box-shadow:0 20px 50px rgba(0,0,0,0.35);">
-        <h2 style="text-align:center;margin:0 0 25px 0;font-size:2.3rem;">STATISTIK RUJUKAN STANDARD</h2>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;">
-            <div class="stat-box"><h1 style="margin:0;font-size:4.5rem;color:#E8F5E8;">{total}</h1><p style="margin:5px 0 0 0;font-size:1.4rem;">JUMLAH STANDARD</p></div>
-            <div class="stat-box"><h1 style="margin:0;font-size:4.5rem;color:#C8E6C9;">{baru}</h1><p style="margin:5px 0 0 0;font-size:1.4rem;">BARU (30 HARI)</p></div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;margin-top:30px;">
-            {''.join(f'<div class="stat-box"><strong style="font-size:1.2rem;">{c}</strong><br><h2 style="margin:10px 0;font-size:2.8rem;">{cat_count.get(c,0)}</h2></div>' for c in CATEGORIES)}
+    <div style="background:linear-gradient(135deg,#00695c,#009688);border-radius:25px;padding:30px;color:white;margin:35px 0;">
+        <h2 style="text-align:center;margin-bottom:30px;">STATISTIK STANDARD</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;">
+            <div class="stat-box"><h1 style="margin:0;color:#E8F5E8;">{total}</h1><p>JUMLAH STANDARD</p></div>
+            <div class="stat-box"><h1 style="margin:0;color:#C8E6C9;">{baru}</h1><p>BARU (30 HARI)</p></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     col1, col2 = st.columns([3,1])
-    with col1: cari = st.text_input("", placeholder="Cari tajuk standard...", key="cari_main")
-    with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES, key="kat_main")
+    with col1: cari = st.text_input("", placeholder="Cari tajuk...", key="cari")
+    with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES, key="kat")
 
     hasil = [d for d in docs if (kat == "Semua" or d['category'] == kat) and (not cari or cari.lower() in d['title'].lower())]
 
@@ -287,8 +272,8 @@ if page == "Halaman Utama":
                 img = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/400x600/4CAF50/white?text=FAMA"
                 st.image(img, use_container_width=True)
             with c2:
-                st.markdown(f"<h3 style='color:#1B5E20;margin:0 0 10px 0;'>{d['title']}</h3>", unsafe_allow_html=True)
-                st.caption(f"**{d['category']}** • Upload: {d['upload_date'][:10]} • {d['uploaded_by']}")
+                st.markdown(f"<h3>{d['title']}</h3>", unsafe_allow_html=True)
+                st.caption(f"**{d['category']}** • {d['upload_date'][:10]} • {d['uploaded_by']}")
                 if os.path.exists(d['file_path']):
                     with open(d['file_path'], "rb") as f:
                         st.download_button("MUAT TURUN PDF", f.read(), d['file_name'], use_container_width=True)
@@ -298,105 +283,95 @@ if page == "Halaman Utama":
 # PAPAR QR CODE
 # =============================================
 elif page == "Papar QR Code":
-    st.markdown("<h1>PAPAR QR CODE STANDARD FAMA</h1>", unsafe_allow_html=True)
-    search = st.text_input("Cari ID / Tajuk", key="qr_search")
-    if search:
+    st.markdown("<h1>PAPAR QR CODE STANDARD</h1>", unsafe_allow_html=True)
+    search = st.text_input("Cari ID atau Tajuk")
+    if search.strip():
         docs = get_docs()
+        matches = []
         try:
-            sid = int(search.strip())
-            matches = [d for d in docs if d['id'] == sid]
+            if search.strip().isdigit():
+                matches = [d for d in docs if d['id'] == int(search.strip())]
         except:
-            matches = [d for d in docs if search.lower() in d['title'].lower()]
-        if matches:
-            for d in matches:
-                link = f"https://rujukan-fama-standard.streamlit.app?doc={d['id']}"
-                qr = qrcode.QRCode(box_size=16, border=6)
-                qr.add_data(link); qr.make(fit=True)
-                img = qr.make_image(fill_color="#1B5E20", back_color="white")
-                buf = BytesIO(); img.save(buf, format="PNG")
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.image(buf.getvalue(), use_container_width=True)
-                    st.download_button("Download QR", buf.getvalue(), f"QR_FAMA_{d['id']}.png", "image/png")
-                with c2:
-                    st.markdown(f"<h2 style='color:#1B5E20;margin-top:40px;'>{d['title']}</h2>", unsafe_allow_html=True)
-                    st.code(link)
-        else:
-            st.error("Tiada dijumpai!")
+            pass
+        if not matches:
+            matches = [d for d in docs if search.lower() in d['title'].lower()][:10]
+
+        for d in matches:
+            link = f"https://{st.secrets.get('app_url', 'rujukan-fama-standard.streamlit.app')}?doc={d['id']}"
+            qr = qrcode.QRCode(box_size=15, border=5)
+            qr.add_data(link); qr.make(fit=True)
+            img = qr.make_image(fill_color="#1B5E20", back_color="white")
+            buf = BytesIO(); img.save(buf, "PNG")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(buf.getvalue(), use_container_width=True)
+                st.download_button("Download QR", buf.getvalue(), f"QR_FAMA_{d['id']}.png")
+            with col2:
+                st.markdown(f"**{d['title']}**")
+                st.code(link, language=None)
 
 # =============================================
 # ADMIN PANEL
 # =============================================
-else:
+else:  # Admin Panel
     if not st.session_state.get("logged_in"):
         st.markdown("<h1>ADMIN PANEL FAMA</h1>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        with c1: user = st.text_input("Username")
-        with c2: pwd = st.text_input("Password", type="password")
+        with c1: username = st.text_input("Username")
+        with c2: password = st.text_input("Password", type="password")
         if st.button("LOG MASUK", type="primary"):
-            if user in ADMIN_CREDENTIALS and hashlib.sha256(pwd.encode()).hexdigest() == ADMIN_CREDENTIALS[user]:
+            if username in ADMIN_CREDENTIALS and hashlib.sha256(password.encode()).hexdigest() == ADMIN_CREDENTIALS[username]:
                 st.session_state.logged_in = True
-                st.session_state.user = user
+                st.session_state.user = username
                 st.rerun()
             else:
-                st.error("Salah!")
+                st.error("Username atau password salah!")
         st.stop()
 
     st.success(f"Selamat Datang, {st.session_state.user.upper()}!")
     st.balloons()
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "Tambah Standard", "Edit & Padam", "Chat + Backup", "Edit Info Halaman Utama", "LOG ERROR"
-    ])
+    t1, t2, t3, t4, t5 = st.tabs(["Tambah", "Edit/Padam", "Chat+Backup", "Edit Info", "Log Error"])
 
-    with tab1:
-        file = st.file_uploader("Upload PDF Standard", type="pdf")
+    with t1:
+        uploaded_file = st.file_uploader("Upload PDF Standard", type="pdf")
         title = st.text_input("Tajuk Standard")
-        cat = st.selectbox("Kategori", CATEGORIES)
-        thumb = st.file_uploader("Thumbnail (pilihan)", type=["jpg","jpeg","png"])
-        if file and title and st.button("SIMPAN STANDARD", type="primary"):
+        category = st.selectbox("Kategori", CATEGORIES)
+        thumbnail = st.file_uploader("Thumbnail (pilihan)", type=["jpg","jpeg","png"])
+        if uploaded_file and title and st.button("SIMPAN STANDARD", type="primary"):
             try:
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                fpath = f"uploads/{ts}_{file.name}"
-                with open(fpath, "wb") as f: f.write(file.getvalue())
-                tpath = save_thumbnail(thumb) if thumb else None
+                filepath = f"uploads/{ts}_{uploaded_file.name}"
+                with open(filepath, "wb") as f:
+                    f.write(uploaded_file.getvalue())
+                thumb_path = save_thumbnail(thumbnail) if thumbnail else None
                 conn = sqlite3.connect(DB_NAME)
                 conn.execute("INSERT INTO documents (title,category,file_name,file_path,thumbnail_path,upload_date,uploaded_by) VALUES (?,?,?,?,?,?,?)",
-                             (title, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
-                conn.commit(); conn.close()
-                st.success("Berjaya ditambah!")
+                             (title, category, uploaded_file.name, filepath, thumb_path, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
+                conn.commit()
+                conn.close()
+                st.success("Standard berjaya ditambah!")
                 st.rerun()
             except Exception as e:
-                log_error("UPLOAD_ERROR", str(e), "Tambah Standard")
-                st.error("Gagal upload. Error direkod.")
+                log_error("UPLOAD_FAIL", str(e), user=st.session_state.user)
+                st.error("Gagal upload!")
 
-    with tab2:
-        st.markdown("<h3>CARI UNTUK EDIT / PADAM</h3>", unsafe_allow_html=True)
-        search = st.text_input("ID atau tajuk", key="admin_search")
-        docs = get_docs() if not search else [d for d in get_docs() if search.lower() in d['title'].lower() or str(d['id']) == search.strip()]
-        
-        for d in docs:
-            with st.expander(f"ID {d['id']} • {d['title']}"):
-                col1, col2 = st.columns([1,3])
-                with col1:
-                    st.image(d['thumbnail_path'] or "https://via.placeholder.com/300", use_container_width=True)
-                with col2:
-                    new_title = st.text_input("Tajuk", d['title'], key=f"t{d['id']}")
-                    new_cat = st.selectbox("Kategori", CATEGORIES, CATEGORIES.index(d['category']), key=f"c{d['id']}")
-                    new_pdf = st.file_uploader("Ganti PDF", type="pdf", key=f"p{d['id']}")
-                    new_thumb = st.file_uploader("Ganti Thumbnail", type=["jpg","jpeg","png"], key=f"th{d['id']}")
-                    
-                    if st.button("KEMASKINI", key=f"u{d['id']}"):
-                        # update logic sama
-                        st.success("Dikemaskini!")
-                        st.rerun()
-                    
-                    if st.button("PADAM", key=f"d{d['id']}", type="secondary"):
-                        # padam logic + confirm
-                        st.success("Dipadam!")
-                        st.rerun()
-
-    # TAB 3, 4, 5 — backup, info edit, log error — semua jalan macam biasa
+    with t5:  # LOG ERROR TAB
+        st.markdown("### LOG ERROR & MONITORING")
+        logs = get_error_logs()
+        if not logs:
+            st.success("TIADA ERROR! Sistem berjalan sempurna!")
+            st.balloons()
+        else:
+            st.error(f"Terdapat {len(logs)} error direkod")
+            for log in logs:
+                with st.expander(f"{log['timestamp']} — {log['error_type']}"):
+                    st.markdown(f"<div class='error-box'>{log['error_message']}</div>", unsafe_allow_html=True)
+                    st.caption(f"Lokasi: {log['location']} | User: {log['user_info']}")
+            if st.button("PADAM SEMUA LOG", type="secondary"):
+                clear_error_logs()
+                st.success("Log dipadam!")
+                st.rerun()
 
     if st.button("Log Keluar"):
         st.session_state.clear()
