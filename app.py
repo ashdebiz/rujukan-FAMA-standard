@@ -1,6 +1,7 @@
 import streamlit as st
 import sqlite3
 import os
+import os
 import zipfile
 import shutil
 from datetime import datetime
@@ -8,10 +9,10 @@ import hashlib
 from PIL import Image
 import qrcode
 from io import BytesIO
-import time  # WAJIB ADA BRO!
+import time
 
 # =============================================
-# PAGE CONFIG + CSS CANTIK GILA (diperbaiki semua)
+# PAGE CONFIG + CSS MANTAP GILA
 # =============================================
 st.set_page_config(
     page_title="Rujukan Standard FAMA",
@@ -24,24 +25,23 @@ st.markdown("""
 <style>
     .main {background: #f8fff8;}
     [data-testid="stSidebar"] {background: linear-gradient(#1B5E20, #2E7D32);}
-    .card {background: white; border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #c8e6c9; margin: 20px 0; transition: 0.3s;}
+    .card {background: white; border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #c8e6c9; margin: 20px 0;}
     .card:hover {box-shadow: 0 20px 40px rgba(0,0,0,0.15);}
-    .info-box {background: linear-gradient(135deg, #E8F5E8, #C8E6C9); border-left: 10px solid #4CAF50; border-radius: 15px; padding: 25px; margin: 30px 0; font-size: 1.15rem; line-height: 1.8;}
+    .info-box {background: linear-gradient(135deg, #E8F5E8, #C8E6C9); border-left: 10px solid #4CAF50; border-radius: 15px; padding: 25px; margin: 30px 0;}
     .direct-card {background: linear-gradient(135deg, #E8F5E8, #C8E6C9); border-radius: 25px; padding: 30px; border: 6px solid #4CAF50; margin: 30px 0; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.2);}
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 55px; width: 100%; font-size: 1.1rem;}
     .stButton>button[kind="secondary"] {background: #d32f2f !important;}
-    h1 {color: #1B5E20; text-align: center; font-size: clamp(2.8rem, 8vw, 5rem);}
     .header-bg {background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://imagine-public.x.ai/imagine-public/images/f0a77a24-6d97-4af7-919f-7a43a07ddff1.png?cache=1'); background-size: cover; background-position: center; border-radius: 30px; padding: 80px 20px; margin: 15px 0 40px 0; box-shadow: 0 30px 70px rgba(0,0,0,0.5);}
     .stat-box {background: rgba(255,255,255,0.3); padding: 20px; border-radius: 18px; text-align: center; backdrop-filter: blur(8px);}
     .restore-box {background: #FFEBEE; border: 4px dashed #D32F2F; border-radius: 20px; padding: 30px; margin: 30px 0;}
-    .hubungi-admin-title h3 {color: white !important; font-weight: 900; font-size: 1.4rem; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); text-align: center; margin: 15px 0 10px 0;}
+    .hubungi-admin-title h3 {color: white !important; font-weight: 900; font-size: 1.4rem; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); text-align: center;}
 </style>
 """, unsafe_allow_html=True)
 
 # =============================================
-# SETUP FOLDER & DB
+# SETUP FOLDER & DATABASE
 # =============================================
-for folder in ["uploads", "thumbnails", "backup_temp"]:
+for folder in ["uploads", "thumbnails"]:
     os.makedirs(folder, exist_ok=True)
 
 DB_NAME = "fama_standards.db"
@@ -142,9 +142,9 @@ def update_site_info(welcome, update):
     conn.close()
 
 # =============================================
-# SIDEBAR
+# SIDEBAR + DIRECT QR ACCESS
 # =============================================
-query-params = st.experimental_get_query_params()
+query_params = st.experimental_get_query_params()
 direct_doc_id = query_params.get("doc", [None])[0]
 
 with st.sidebar:
@@ -165,11 +165,11 @@ with st.sidebar:
         pesan = st.text_area("Mesej", height=90)
         if st.form_submit_button("Hantar") and nama.strip() and pesan.strip():
             add_chat_message(nama.strip(), pesan.strip())
-            st.success("Dihantar!")
+            st.success("Mesej dihantar!")
             st.rerun()
 
 # =============================================
-# DIRECT QR ACCESS
+# DIRECT QR ACCESS (JALAN KALAU LINK ?doc=123)
 # =============================================
 if direct_doc_id and page != "Admin Panel":
     try:
@@ -192,13 +192,20 @@ if direct_doc_id and page != "Admin Panel":
         st.stop()
 
 # =============================================
-# HALAMAN UTAMA — PAGINATION 10 PER PAGE
+# HALAMAN UTAMA — FULL FEATURES
 # =============================================
 if page == "Halaman Utama":
     info = get_site_info()
+    
     st.markdown("<div class='header-bg'><h1 style='color:white;'>RUJUKAN STANDARD FAMA</h1><p style='color:white;font-size:2rem;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
     
-    st.markdown(f"<div class='info-box'><h2 style='text-align:center;color:#1B5E20;'>MAKLUMAT TERKINI</h2><p style='text-align:center;font-weight:bold;font-size:1.3rem;color:#1B5E20;'>{info['welcome']}</p><p style='text-align:center;color:#2E7D32;font-style:italic;'>{info['update']}</p></div>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class='info-box'>
+        <h2 style='text-align:center;color:#1B5E20;'>MAKLUMAT TERKINI</h2>
+        <p style='text-align:center;font-weight:bold;font-size:1.3rem;color:#1B5E20;'>{info['welcome']}</p>
+        <p style='text-align:center;color:#2E7D32;font-style:italic;'>{info['update']}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     docs = get_docs()
     total = len(docs)
@@ -207,45 +214,44 @@ if page == "Halaman Utama":
 
     st.markdown(f"""
     <div style="background:linear-gradient(135deg,#00695c,#009688);border-radius:25px;padding:35px;color:white;margin:40px 0;">
-        <h2 style="text-align:center;margin-bottom:30px;">STATISTIK STANDARD</h2>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:25px;">
-            <div class="stat-box"><h1 style="margin:0;color:#E8F5E8;">{total}</h1><p>JUMLAH STANDARD</p></div>
+        <h2 style="text-align:center;">STATISTIK STANDARD</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:30px;">
+            <div class="stat-box"><h1 style="margin:0;color:#E8F5E8;">{total}</h1><p>JUMLAH</p></div>
             <div class="stat-box"><h1 style="margin:0;color:#C8E6C9;">{baru}</h1><p>BARU (30 HARI)</p></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:20px;margin-top:40px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:25px;margin-top:40px;">
             {''.join(f'<div class="stat-box"><strong>{cat}</strong><h2 style="margin:10px 0;color:#E8F5E8;">{cat_count[cat]}</h2></div>' for cat in CATEGORIES)}
         </div>
     </div>
     """, unsafe_allow_html=True)
 
+    # Cari + Filter
     col1, col2 = st.columns([3,1])
-    with col1: cari = st.text_input("", placeholder="Cari tajuk standard...", key="cari_main")
-    with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES, key="kat_main")
+    with col1: cari = st.text_input("", placeholder="Cari tajuk standard...", key="cari")
+    with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES, key="kat")
 
-    filtered_docs = [d for d in docs if (kat == "Semua" or d['category'] == kat) and (not cari or cari.lower() in d['title'].lower())]
+    filtered = [d for d in docs if (kat == "Semua" or d['category'] == kat) and (not cari or cari.lower() in d['title'].lower())]
 
-    items_per_page = 10
-    total_pages = max(1, (len(filtered_docs) + items_per_page - 1) // items_per_page)
+    # Pagination
+    per_page = 10
+    total_page = max(1, (len(filtered) + per_page - 1) // per_page)
     if "page" not in st.session_state: st.session_state.page = 1
 
-    col_prev, col_info, col_next = st.columns([1.5, 3, 1.5])
-    with col_prev:
-        if st.button("Sebelumnya", disabled=st.session_state.page <= 1):
-            st.session_state.page -= 1
-            st.rerun()
-    with col_info:
-        st.markdown(f"<div style='text-align:center;padding:15px;background:#4CAF50;color:white;border-radius:15px;font-weight:bold;'>Halaman {st.session_state.page} / {total_pages} • {len(filtered_docs)} standard</div>", unsafe_allow_html=True)
-    with col_next:
-        if st.button("Seterusnya", disabled=st.session_state.page >= total_pages):
-            st.session_state.page += 1
-            st.rerun()
+    c1, c2, c3 = st.columns([1.5,3,1.5])
+    with c1:
+        if st.button("Sebelumnya", disabled=st.session_state.page<=1):
+            st.session_state.page -= 1; st.rerun()
+    with c2:
+        st.markdown(f"<div style='text-align:center;padding:15px;background:#4CAF50;color:white;border-radius:15px;font-weight:bold;'>Halaman {st.session_state.page} / {total_page} • {len(filtered)} standard</div>", unsafe_allow_html=True)
+    with c3:
+        if st.button("Seterusnya", disabled=st.session_state.page>=total_page):
+            st.session_state.page += 1; st.rerun()
 
-    start = (st.session_state.page - 1) * items_per_page
-    end = start + items_per_page
-    for d in filtered_docs[start:end]:
+    start = (st.session_state.page-1) * per_page
+    for d in filtered[start:start+per_page]:
         with st.container():
             st.markdown("<div class='card'>", unsafe_allow_html=True)
-            c1, c2 = st.columns([1, 2])
+            c1, c2 = st.columns([1,2])
             with c1:
                 img = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/400x600/4CAF50/white?text=FAMA"
                 st.image(img, use_container_width=True)
@@ -267,14 +273,9 @@ if page == "Halaman Utama":
 # =============================================
 elif page == "Papar QR Code":
     st.markdown("<h1 style='text-align:center;color:#1B5E20;'>PAPAR QR CODE STANDARD FAMA</h1>", unsafe_allow_html=True)
-    search = st.text_input("Cari ID atau Tajuk", placeholder="Contoh: 12 atau Durian")
+    search = st.text_input("Cari ID atau Tajuk")
     if search.strip():
-        docs = get_docs()
-        matches = []
-        if search.strip().isdigit():
-            matches = [d for d in docs if d['id'] == int(search.strip())]
-        if not matches:
-            matches = [d for d in docs if search.lower() in d['title'].lower()][:15]
+        matches = [d for d in get_docs() if str(d['id']) == search.strip() or search.lower() in d['title'].lower()][:15]
         for d in matches:
             link = f"https://rujukan-fama-standard.streamlit.app/?doc={d['id']}"
             qr = qrcode.QRCode(box_size=18, border=6)
@@ -288,11 +289,10 @@ elif page == "Papar QR Code":
             with c2:
                 st.markdown(f"### {d['title']}")
                 st.code(link)
-                st.caption(f"ID: {d['id']} • {d['category']}")
             st.markdown("---")
 
 # =============================================
-# ADMIN PANEL — 100% LENGKAP & JALAN GEMPUR!
+# ADMIN PANEL — FULL POWER
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -306,19 +306,18 @@ else:
                 st.session_state.user = username
                 st.success("Login berjaya!"); st.balloons(); st.rerun()
             else:
-                st.error("Salah!")
+                st.error("Salah bro!")
         st.stop()
 
-    st.success(f"ADMIN: {st.session_state.user.upper()}"); st.balloons()
+    st.success(f"ADMIN: {st.session_state.user.upper()}")
     t1, t2, t3, t4 = st.tabs(["Tambah Standard", "Edit & Padam", "Chat + Backup", "Edit Info"])
 
     with t1:
-        st.markdown("### Tambah Standard Baru")
         file = st.file_uploader("Upload PDF", type="pdf")
-        title = st.text_input("Tajuk Standard")
+        title = st.text_input("Tajuk")
         cat = st.selectbox("Kategori", CATEGORIES)
-        thumb = st.file_uploader("Thumbnail (Pilihan)", type=["jpg","jpeg","png"])
-        if file and title and st.button("SIMPAN STANDARD", type="primary"):
+        thumb = st.file_uploader("Thumbnail", type=["jpg","jpeg","png"])
+        if file and title and st.button("SIMPAN", type="primary"):
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             fpath = f"uploads/{ts}_{file.name}"
             with open(fpath, "wb") as f: f.write(file.getvalue())
@@ -327,71 +326,66 @@ else:
             conn.execute("INSERT INTO documents (title,category,file_name,file_path,thumbnail_path,upload_date,uploaded_by) VALUES (?,?,?,?,?,?,?)",
                          (title, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
             conn.commit(); conn.close()
-            st.success("Berjaya ditambah!"); st.balloons(); st.rerun()
+            st.success("Berjaya!"); st.balloons(); st.rerun()
 
     with t2:
-        search = st.text_input("Cari ID/tajuk")
+        search = st.text_input("Cari ID atau tajuk")
         docs = get_docs()
         if search:
             docs = [d for d in docs if search in str(d['id']) or search.lower() in d['title'].lower()]
         for d in docs:
             with st.expander(f"ID {d['id']} • {d['title']}"):
-                c1, c2 = st.columns([1,3])
-                with c1:
-                    st.image(d['thumbnail_path'] or "https://via.placeholder.com/300", use_container_width=True)
-                with c2:
-                    new_title = st.text_input("Tajuk", d['title'], key=f"t{d['id']}")
-                    new_cat = st.selectbox("Kategori", CATEGORIES, CATEGORIES.index(d['category']), key=f"c{d['id']}")
-                    if st.button("KEMASKINI", key=f"u{d['id']}"):
+                new_title = st.text_input("Tajuk", d['title'], key=f"title{d['id']}")
+                new_cat = st.selectbox("Kategori", CATEGORIES, CATEGORIES.index(d['category']), key=f"cat{d['id']}")
+                if st.button("KEMASKINI", key=f"up{d['id']}"):
+                    conn = sqlite3.connect(DB_NAME)
+                    conn.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
+                    conn.commit(); conn.close()
+                    st.success("Dikemaskini!"); st.rerun()
+                if st.button("PADAM", key=f"del{d['id']}", type="secondary"):
+                    if st.button("SAH PADAM?", key=f"cf{d['id']}"):
+                        if os.path.exists(d['file_path']): os.remove(d['file_path'])
+                        if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
                         conn = sqlite3.connect(DB_NAME)
-                        conn.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
+                        conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
                         conn.commit(); conn.close()
-                        st.success("Dikemaskini!"); st.rerun()
-                    if st.button("PADAM", key=f"d{d['id']}", type="secondary"):
-                        if st.button("SAH PADAM?", key=f"confirm{d['id']}"):
-                            if os.path.exists(d['file_path']): os.remove(d['file_path'])
-                            if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
-                            conn = sqlite3.connect(DB_NAME)
-                            conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
-                            conn.commit(); conn.close()
-                            st.success("Dipadam!"); st.rerun()
+                        st.success("Dipadam!"); st.rerun()
 
     with t3:
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown("### Backup & Restore")
             if st.button("Download Backup ZIP"):
-                zipname = f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+                zipname = f"FAMA_BACKUP_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
                 with zipfile.ZipFile(zipname, "w", zipfile.ZIP_DEFLATED) as z:
                     z.write(DB_NAME)
                     for folder in ["uploads", "thumbnails"]:
                         for root, _, files in os.walk(folder):
                             for file in files:
-                                full = os.path.join(root, file)
-                                arc = os.path.relpath(full, ".")
-                                z.write(full, arc)
+                                z.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file)))
                 with open(zipname, "rb") as f:
-                    st.download_button("Download ZIP", f.read(), zipname, "application/zip")
+                    st.download_button("Download Backup", f.read(), zipname)
                 os.remove(zipname)
 
             st.markdown("<div class='restore-box'>", unsafe_allow_html=True)
-            uploaded = st.file_uploader("Upload backup .zip untuk restore", type="zip")
-            if uploaded and st.checkbox("Saya faham semua data akan diganti"):
+            uploaded = st.file_uploader("Upload backup .zip", type="zip")
+            if uploaded and st.checkbox("Saya faham data akan diganti"):
                 if st.button("RESTORE SEKARANG", type="secondary"):
                     with st.spinner("Restoring..."):
-                        for folder in ["uploads", "thumbnails"]:
-                            if os.path.exists(folder): shutil.rmtree(folder); os.makedirs(folder)
+                        for f in ["uploads", "thumbnails"]:
+                            if os.path.exists(f): shutil.rmtree(f); os.makedirs(f)
                         with zipfile.ZipFile(uploaded) as z:
                             z.extractall(".")
-                        st.success("RESTORE 100% BERJAYA!"); st.balloons(); time.sleep(2); st.rerun()
+                        st.success("RESTORE 100% BERJAYA!")
+                        st.balloons()
+                        time.sleep(2)
+                        st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
         with c2:
-            st.markdown("### Chat Pengguna")
             if st.button("PADAM SEMUA CHAT", type="secondary"):
                 if st.session_state.get("confirm_clear"):
                     clear_all_chat()
-                    st.success("Semua chat dipadam!"); del st.session_state.confirm_clear; st.rerun()
+                    st.success("Chat dipadam!"); del st.session_state.confirm_clear; st.rerun()
                 else:
                     st.session_state.confirm_clear = True
                     st.warning("Tekan sekali lagi untuk sah!")
@@ -401,9 +395,9 @@ else:
                     st.success(f"Admin: {m['message']}")
                 else:
                     st.info(f"{m['sender']}: {m['message']}")
-                    reply = st.text_input("Balas", key=f"r{m['id']}")
+                    r = st.text_input("Balas", key=f"r{m['id']}")
                     if st.button("Hantar", key=f"s{m['id']}"):
-                        add_chat_message("Admin FAMA", reply, True); st.rerun()
+                        add_chat_message("Admin FAMA", r, True); st.rerun()
 
     with t4:
         info = get_site_info()
@@ -412,9 +406,10 @@ else:
             u = st.text_area("Maklumat Terkini", info['update'], height=150)
             if st.form_submit_button("SIMPAN"):
                 update_site_info(w, u)
-                st.success("Berjaya dikemaskini!"); st.rerun()
+                st.success("Berjaya!"); st.rerun()
 
     if st.button("Log Keluar"):
-        st.session_state.clear(); st.rerun()
+        st.session_state.clear()
+        st.rerun()
 
-st.markdown("<p style='text-align:center;color:gray;font-size:0.9rem;'>© Rujukan Standard FAMA • 2025 • Powered By Santana Techno • Kau Dah Menang Selamanya Bro</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center;color:gray;font-size:0.9rem;'>© Rujukan Standard FAMA • 2025 • Kau Dah Menang Selamanya Bro!</p>", unsafe_allow_html=True)
