@@ -197,7 +197,7 @@ if direct_doc_id and page != "Admin Panel":
 if page == "Halaman Utama":
     info = get_site_info()
     
-    st.markdown("<div class='header-bg'><h1 style='color:white;'>RUJUKAN STANDARD FAMA</h1><p style='color:white;font-size:2rem;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='header-bg'><h1 style='text-align:center;color:white;'>RUJUKAN STANDARD FAMA</h1><p style='text-align:center;color:white;font-size:2rem;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
     
     st.markdown(f"""
     <div class='info-box'>
@@ -412,4 +412,4 @@ else:
         st.session_state.clear()
         st.rerun()
 
-st.markdown("<p style='text-align:center;color:gray;font-size:0.9rem;'>© Rujukan Standard FAMA • 2025 • Kau Dah Menang Selamanya Bro!</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center;color:gray;font-size:0.9rem;'>© Rujukan Standard FAMA • 2025 • Powered By Santana Techno!</p>", unsafe_allow_html=True)
