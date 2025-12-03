@@ -15,7 +15,7 @@ import time
 # PAGE CONFIG + CSS MANTAP GILA
 # =============================================
 st.set_page_config(
-    page_title="Rujukan Standard FAMA",
+    page_title="Rujukan FAMA Standard",
     page_icon="leaf",
     layout="centered",
     initial_sidebar_state="auto"
@@ -65,7 +65,7 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS site_info (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         welcome_text TEXT, update_info TEXT)""")
-    c.execute("INSERT OR IGNORE INTO site_info (id, welcome_text, update_info) VALUES (1, 'Selamat Datang ke Sistem Rujukan Standard FAMA', 'Semua standard komoditi telah dikemaskini sehingga Disember 2025')")
+    c.execute("INSERT OR IGNORE INTO site_info (id, welcome_text, update_info) VALUES (1, 'Selamat Datang ke Sistem Rujukan FAMA Standard', 'Semua standard komoditi telah dikemaskini sehingga Disember 2025')")
     conn.commit()
     conn.close()
 init_db()
@@ -197,7 +197,7 @@ if direct_doc_id and page != "Admin Panel":
 if page == "Halaman Utama":
     info = get_site_info()
     
-    st.markdown("<div class='header-bg'><h1 style='text-align:center;color:white;'>RUJUKAN STANDARD FAMA</h1><p style='text-align:center;color:white;font-size:2rem;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='header-bg'><h1 style='text-align:center;color:white;'>RUJUKAN FAMA STANDARD</h1><p style='text-align:center;color:white;font-size:2rem;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
     
     st.markdown(f"""
     <div class='info-box'>
@@ -272,7 +272,7 @@ if page == "Halaman Utama":
 # PAPAR QR CODE
 # =============================================
 elif page == "Papar QR Code":
-    st.markdown("<h1 style='text-align:center;color:#1B5E20;'>PAPAR QR CODE STANDARD FAMA</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;color:#1B5E20;'>PAPAR QR CODE FAMA STANDARD</h1>", unsafe_allow_html=True)
     search = st.text_input("Cari ID atau Tajuk")
     if search.strip():
         matches = [d for d in get_docs() if str(d['id']) == search.strip() or search.lower() in d['title'].lower()][:15]
