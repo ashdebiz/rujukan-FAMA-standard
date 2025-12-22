@@ -293,7 +293,7 @@ elif page == "Papar QR Code":
             st.markdown("---")
 
 # =============================================
-# ADMIN PANEL
+# ADMIN PANEL — DENGAN EDIT THUMBNAIL + PDF SEKALIGUS!
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -333,28 +333,89 @@ else:
             st.balloons()
             st.rerun()
 
-    with t2:
-        search = st.text_input("Cari ID atau tajuk")
+    with t2:  # EDIT & PADAM — BOLEH GANTI PDF + THUMBNAIL SEKALIGUS!
+        search = st.text_input("Cari ID atau tajuk untuk edit/padam")
         docs = get_docs()
-        if search:
-            docs = [d for d in docs if search in str(d['id']) or search.lower() in d['title'].lower()]
+        if search.strip():
+            docs = [d for d in docs if search.lower() in str(d['id']).lower() or search.lower() in d['title'].lower()]
+
         for d in docs:
-            with st.expander(f"ID {d['id']} • {d['title']}"):
-                new_title = st.text_input("Tajuk", d['title'], key=f"title{d['id']}")
-                new_cat = st.selectbox("Kategori", CATEGORIES, CATEGORIES.index(d['category']), key=f"cat{d['id']}")
-                if st.button("KEMASKINI", key=f"up{d['id']}"):
-                    conn = sqlite3.connect(DB_NAME)
-                    conn.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
-                    conn.commit(); conn.close()
-                    st.success("Dikemaskini!"); st.rerun()
-                if st.button("PADAM", key=f"del{d['id']}", type="secondary"):
-                    if st.button("SAH PADAM?", key=f"cf{d['id']}"):
-                        if os.path.exists(d['file_path']): os.remove(d['file_path'])
-                        if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
-                        conn = sqlite3.connect(DB_NAME)
-                        conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
-                        conn.commit(); conn.close()
-                        st.success("Dipadam!"); st.rerun()
+            with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
+                col_img, col_form = st.columns([1, 2])
+                with col_img:
+                    current_thumb = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/300x400/4CAF50/white?text=THUMBNAIL"
+                    st.image(current_thumb, use_container_width=True)
+                    st.caption("Thumbnail Semasa")
+
+                with col_form:
+                    new_title = st.text_input("Tajuk Baru", value=d['title'], key=f"title_{d['id']}")
+                    new_cat = st.selectbox("Kategori Baru", CATEGORIES, index=CATEGORIES.index(d['category']), key=f"cat_{d['id']}")
+
+                    new_pdf = st.file_uploader("Ganti PDF (pilihan)", type="pdf", key=f"pdf_{d['id']}")
+                    new_thumb = st.file_uploader("Ganti Thumbnail (pilihan)", type=["jpg", "jpeg", "png"], key=f"thumb_{d['id']}")
+
+                    if st.button("💾 KEMASKINI STANDARD", key=f"update_{d['id']}", type="primary"):
+                        try:
+                            updates_made = False
+                            conn = sqlite3.connect(DB_NAME)
+                            c = conn.cursor()
+
+                            # Update tajuk & kategori
+                            if new_title != d['title'] or new_cat != d['category']:
+                                c.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
+                                updates_made = True
+
+                            # Ganti PDF kalau ada upload baru
+                            if new_pdf:
+                                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                new_fpath = f"uploads/{ts}_{new_pdf.name}"
+                                with open(new_fpath, "wb") as f:
+                                    f.write(new_pdf.getvalue())
+                                # Padam PDF lama
+                                if os.path.exists(d['file_path']):
+                                    os.remove(d['file_path'])
+                                c.execute("UPDATE documents SET file_name=?, file_path=? WHERE id=?", (new_pdf.name, new_fpath, d['id']))
+                                updates_made = True
+
+                            # Ganti thumbnail kalau ada upload baru
+                            if new_thumb:
+                                new_tpath = save_thumbnail(new_thumb)
+                                if new_tpath:
+                                    # Padam thumbnail lama
+                                    if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']):
+                                        os.remove(d['thumbnail_path'])
+                                    c.execute("UPDATE documents SET thumbnail_path=? WHERE id=?", (new_tpath, d['id']))
+                                    updates_made = True
+
+                            if updates_made:
+                                conn.commit()
+                                st.success(f"Standard ID {d['id']} berjaya dikemaskini!")
+                                st.balloons()
+                                conn.close()
+                                st.rerun()
+                            else:
+                                st.info("Tiada perubahan dibuat.")
+                                conn.close()
+                        except Exception as e:
+                            st.error(f"Gagal kemaskini: {str(e)}")
+
+                    if st.button("🗑️ PADAM STANDARD", key=f"delete_{d['id']}", type="secondary"):
+                        if st.button("⚠️ SAH PADAM STANDARD INI?", key=f"confirm_delete_{d['id']}", type="secondary"):
+                            try:
+                                # Padam file fizikal
+                                if os.path.exists(d['file_path']):
+                                    os.remove(d['file_path'])
+                                if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']):
+                                    os.remove(d['thumbnail_path'])
+                                # Padam dari database
+                                conn = sqlite3.connect(DB_NAME)
+                                conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
+                                conn.commit()
+                                conn.close()
+                                st.success(f"Standard ID {d['id']} telah dipadam!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Gagal padam: {str(e)}")
 
     with t3:
         c1, c2 = st.columns(2)
