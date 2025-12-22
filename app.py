@@ -1,7 +1,6 @@
 import streamlit as st
 import sqlite3
 import os
-import os
 import zipfile
 import shutil
 from datetime import datetime
@@ -81,7 +80,8 @@ def save_thumbnail(file):
         path = f"thumbnails/thumb_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.jpg"
         img.save(path, "JPEG", quality=95)
         return path
-    except: return None
+    except:
+        return None
 
 def get_docs():
     conn = sqlite3.connect(DB_NAME)
@@ -169,7 +169,7 @@ with st.sidebar:
             st.rerun()
 
 # =============================================
-# DIRECT QR ACCESS (JALAN KALAU LINK ?doc=123)
+# DIRECT QR ACCESS
 # =============================================
 if direct_doc_id and page != "Admin Panel":
     try:
@@ -192,7 +192,7 @@ if direct_doc_id and page != "Admin Panel":
         st.stop()
 
 # =============================================
-# HALAMAN UTAMA — FULL FEATURES
+# HALAMAN UTAMA
 # =============================================
 if page == "Halaman Utama":
     info = get_site_info()
@@ -225,29 +225,30 @@ if page == "Halaman Utama":
     </div>
     """, unsafe_allow_html=True)
 
-    # Cari + Filter
     col1, col2 = st.columns([3,1])
     with col1: cari = st.text_input("", placeholder="Cari tajuk standard...", key="cari")
     with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES, key="kat")
 
     filtered = [d for d in docs if (kat == "Semua" or d['category'] == kat) and (not cari or cari.lower() in d['title'].lower())]
 
-    # Pagination
     per_page = 10
     total_page = max(1, (len(filtered) + per_page - 1) // per_page)
-    if "page" not in st.session_state: st.session_state.page = 1
+    if "page" not in st.session_state: 
+        st.session_state.page = 1
 
     c1, c2, c3 = st.columns([1.5,3,1.5])
     with c1:
-        if st.button("Sebelumnya", disabled=st.session_state.page<=1):
-            st.session_state.page -= 1; st.rerun()
+        if st.button("Sebelumnya", disabled=st.session_state.page <= 1):
+            st.session_state.page -= 1
+            st.rerun()
     with c2:
         st.markdown(f"<div style='text-align:center;padding:15px;background:#4CAF50;color:white;border-radius:15px;font-weight:bold;'>Halaman {st.session_state.page} / {total_page} • {len(filtered)} standard</div>", unsafe_allow_html=True)
     with c3:
-        if st.button("Seterusnya", disabled=st.session_state.page>=total_page):
-            st.session_state.page += 1; st.rerun()
+        if st.button("Seterusnya", disabled=st.session_state.page >= total_page):
+            st.session_state.page += 1
+            st.rerun()
 
-    start = (st.session_state.page-1) * per_page
+    start = (st.session_state.page - 1) * per_page
     for d in filtered[start:start+per_page]:
         with st.container():
             st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -292,7 +293,7 @@ elif page == "Papar QR Code":
             st.markdown("---")
 
 # =============================================
-# ADMIN PANEL — FULL POWER
+# ADMIN PANEL
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -304,7 +305,9 @@ else:
             if username in ADMIN_CREDENTIALS and hashlib.sha256(password.encode()).hexdigest() == ADMIN_CREDENTIALS[username]:
                 st.session_state.logged_in = True
                 st.session_state.user = username
-                st.success("Login berjaya!"); st.balloons(); st.rerun()
+                st.success("Login berjaya!")
+                st.balloons()
+                st.rerun()
             else:
                 st.error("Salah bro!")
         st.stop()
@@ -326,7 +329,9 @@ else:
             conn.execute("INSERT INTO documents (title,category,file_name,file_path,thumbnail_path,upload_date,uploaded_by) VALUES (?,?,?,?,?,?,?)",
                          (title, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
             conn.commit(); conn.close()
-            st.success("Berjaya!"); st.balloons(); st.rerun()
+            st.success("Berjaya!")
+            st.balloons()
+            st.rerun()
 
     with t2:
         search = st.text_input("Cari ID atau tajuk")
