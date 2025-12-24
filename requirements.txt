@@ -1,5 +1,5 @@
 streamlit
-PyPDF2
-python-docx
-Pillow
-qrcode[pil]
+sqlalchemy
+psycopg2-binary
+pillow
+qrcode
