@@ -11,6 +11,15 @@ import qrcode
 
 from sqlalchemy import create_engine, text
 
+try:
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+    st.success("✅ Neon connected")
+except Exception as e:
+    st.error("❌ DB connection failed")
+    st.exception(e)
+    st.stop()
+
 # ======================================================
 # CONFIG
 # ======================================================
@@ -25,9 +34,7 @@ st.set_page_config(
 # ======================================================
 engine = create_engine(
     st.secrets["DATABASE_URL"],
-    pool_pre_ping=True,
-    pool_recycle=300,
-    connect_args={"sslmode": "require"}
+    pool_pre_ping=True
 )
 
 def init_db():
