@@ -25,7 +25,9 @@ st.set_page_config(
 # ======================================================
 engine = create_engine(
     st.secrets["DATABASE_URL"],
-    pool_pre_ping=True
+    pool_pre_ping=True,
+    pool_recycle=300,
+    connect_args={"sslmode": "require"}
 )
 
 def init_db():
