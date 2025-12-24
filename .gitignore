@@ -1,4 +1,14 @@
+# secrets
+.streamlit/secrets.toml
+secrets.toml
+service-account.json
+
+# database
 *.sqlite
 *.db
+
+# uploads
 uploads/
 thumbnails/
+
+__pycache__/
