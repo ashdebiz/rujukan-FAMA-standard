@@ -1,7 +1,6 @@
 import streamlit as st
 import sqlite3
 import os
-import os
 import zipfile
 import shutil
 from datetime import datetime
@@ -15,9 +14,9 @@ import time
 # PAGE CONFIG + CSS MANTAP GILA
 # =============================================
 st.set_page_config(
-    page_title="Rujukan Standard FAMA",
-    page_icon="leaf",
-    layout="centered",
+    page_title="Rujukan FAMA Standard",
+    page_icon="🌿",
+    layout="wide",
     initial_sidebar_state="auto"
 )
 
@@ -31,7 +30,7 @@ st.markdown("""
     .direct-card {background: linear-gradient(135deg, #E8F5E8, #C8E6C9); border-radius: 25px; padding: 30px; border: 6px solid #4CAF50; margin: 30px 0; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.2);}
     .stButton>button {background: #4CAF50; color: white; font-weight: bold; border-radius: 15px; height: 55px; width: 100%; font-size: 1.1rem;}
     .stButton>button[kind="secondary"] {background: #d32f2f !important;}
-    .header-bg {background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://imagine-public.x.ai/imagine-public/images/f0a77a24-6d97-4af7-919f-7a43a07ddff1.png?cache=1'); background-size: cover; background-position: center; border-radius: 30px; padding: 80px 20px; margin: 15px 0 40px 0; box-shadow: 0 30px 70px rgba(0,0,0,0.5);}
+    .header-bg {background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1500595046743-ee5a8a800ec2?w=1200'); background-size: cover; background-position: center; border-radius: 30px; padding: 80px 20px; margin: 15px 0 40px 0; box-shadow: 0 30px 70px rgba(0,0,0,0.5);}
     .stat-box {background: rgba(255,255,255,0.3); padding: 20px; border-radius: 18px; text-align: center; backdrop-filter: blur(8px);}
     .restore-box {background: #FFEBEE; border: 4px dashed #D32F2F; border-radius: 20px; padding: 30px; margin: 30px 0;}
     .hubungi-admin-title h3 {color: white !important; font-weight: 900; font-size: 1.4rem; text-shadow: 2px 2px 10px rgba(0,0,0,0.8); text-align: center;}
@@ -53,21 +52,25 @@ ADMIN_CREDENTIALS = {
 }
 
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("""CREATE TABLE IF NOT EXISTS documents (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, category TEXT,
-        file_name TEXT, file_path TEXT, thumbnail_path TEXT,
-        upload_date TEXT, uploaded_by TEXT)""")
-    c.execute("""CREATE TABLE IF NOT EXISTS chat_messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT, message TEXT,
-        timestamp TEXT, is_admin INTEGER DEFAULT 0)""")
-    c.execute("""CREATE TABLE IF NOT EXISTS site_info (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        welcome_text TEXT, update_info TEXT)""")
-    c.execute("INSERT OR IGNORE INTO site_info (id, welcome_text, update_info) VALUES (1, 'Selamat Datang ke Sistem Rujukan Standard FAMA', 'Semua standard komoditi telah dikemaskini sehingga Disember 2025')")
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        c.execute("""CREATE TABLE IF NOT EXISTS documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, category TEXT,
+            file_name TEXT, file_path TEXT, thumbnail_path TEXT,
+            upload_date TEXT, uploaded_by TEXT)""")
+        c.execute("""CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT, message TEXT,
+            timestamp TEXT, is_admin INTEGER DEFAULT 0)""")
+        c.execute("""CREATE TABLE IF NOT EXISTS site_info (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            welcome_text TEXT, update_info TEXT)""")
+        c.execute("INSERT OR IGNORE INTO site_info (id, welcome_text, update_info) VALUES (1, 'Selamat Datang ke Sistem Rujukan FAMA Standard', 'Semua standard komoditi telah dikemaskini sehingga Februari 2026')")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        st.error(f"Database init error: {e}")
+
 init_db()
 
 # =============================================
@@ -81,70 +84,97 @@ def save_thumbnail(file):
         path = f"thumbnails/thumb_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.jpg"
         img.save(path, "JPEG", quality=95)
         return path
-    except: return None
+    except Exception as e:
+        st.error(f"Error save thumbnail: {e}")
+        return None
 
 def get_docs():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM documents ORDER BY id DESC")
-    rows = c.fetchall()
-    conn.close()
-    return [dict(row) for row in rows]
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM documents ORDER BY id DESC")
+        rows = c.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        st.error(f"Error get docs: {e}")
+        return []
 
 def get_doc_by_id(doc_id):
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM documents WHERE id = ?", (doc_id,))
-    row = c.fetchone()
-    conn.close()
-    return dict(row) if row else None
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM documents WHERE id = ?", (doc_id,))
+        row = c.fetchone()
+        conn.close()
+        return dict(row) if row else None
+    except Exception as e:
+        st.error(f"Error get doc: {e}")
+        return None
 
 @st.cache_data(ttl=10)
 def get_chat_messages():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT * FROM chat_messages ORDER BY timestamp ASC")
-    rows = c.fetchall()
-    conn.close()
-    return [dict(row) for row in rows]
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM chat_messages ORDER BY timestamp ASC")
+        rows = c.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    except:
+        return []
 
 def add_chat_message(sender, message, is_admin=False):
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute("INSERT INTO chat_messages (sender,message,timestamp,is_admin) VALUES (?,?,?,?)",
-                 (sender, message, datetime.now().strftime("%Y-%m-%d %H:%M"), int(is_admin)))
-    conn.commit()
-    conn.close()
-    st.cache_data.clear()
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        conn.execute("INSERT INTO chat_messages (sender,message,timestamp,is_admin) VALUES (?,?,?,?)",
+                     (sender, message, datetime.now().strftime("%Y-%m-%d %H:%M"), int(is_admin)))
+        conn.commit()
+        conn.close()
+        st.cache_data.clear()
+    except Exception as e:
+        st.error(f"Error add chat: {e}")
 
 def clear_all_chat():
-    conn = sqlite3.connect(DB_NAME)
-    conn.execute("DELETE FROM chat_messages")
-    conn.commit()
-    conn.close()
-    st.cache_data.clear()
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        conn.execute("DELETE FROM chat_messages")
+        conn.commit()
+        conn.close()
+        st.cache_data.clear()
+        st.success("Semua chat dipadam!")
+    except Exception as e:
+        st.error(f"Error clear chat: {e}")
 
 def get_site_info():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("SELECT welcome_text, update_info FROM site_info WHERE id = 1")
-    row = c.fetchone()
-    conn.close()
-    return {"welcome": row[0] if row else "Selamat Datang", "update": row[1] if row else ""}
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        c.execute("SELECT welcome_text, update_info FROM site_info WHERE id = 1")
+        row = c.fetchone()
+        conn.close()
+        return {"welcome": row[0] if row else "Selamat Datang", "update": row[1] if row else ""}
+    except:
+        return {"welcome": "Selamat Datang", "update": ""}
 
 def update_site_info(welcome, update):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE site_info SET welcome_text=?, update_info=? WHERE id=1", (welcome, update))
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        c.execute("UPDATE site_info SET welcome_text = ?, update_info = ? WHERE id = 1", (welcome, update))
+        conn.commit()
+        conn.close()
+        st.success("Maklumat dikemaskini!")
+    except Exception as e:
+        st.error(f"Error update info: {e}")
 
 # =============================================
 # SIDEBAR + DIRECT QR ACCESS
 # =============================================
-query_params = st.experimental_get_query_params()
+query_params = st.query_params  # Fixed: new Streamlit API
 direct_doc_id = query_params.get("doc", [None])[0]
 
 with st.sidebar:
@@ -155,7 +185,7 @@ with st.sidebar:
     st.markdown("<div class='hubungi-admin-title'><h3>Hubungi Admin FAMA</h3></div>", unsafe_allow_html=True)
     
     for msg in get_chat_messages()[-8:]:
-        if msg['is_admin']:
+        if msg.get('is_admin'):
             st.markdown(f'<div style="background:#E8F5E8;border-radius:12px;padding:12px;margin:8px 0;text-align:right;border-left:6px solid #4CAF50;"><small><b>Admin</b> • {msg["timestamp"][-5:]}</small><br>{msg["message"]}</div>', unsafe_allow_html=True)
         else:
             st.markdown(f'<div style="background:#4CAF50;color:white;border-radius:12px;padding:12px;margin:8px 0;"><small><b>{msg["sender"]}</b> • {msg["timestamp"][-5:]}</small><br>{msg["message"]}</div>', unsafe_allow_html=True)
@@ -169,7 +199,7 @@ with st.sidebar:
             st.rerun()
 
 # =============================================
-# DIRECT QR ACCESS (JALAN KALAU LINK ?doc=123)
+# DIRECT QR ACCESS
 # =============================================
 if direct_doc_id and page != "Admin Panel":
     try:
@@ -178,26 +208,37 @@ if direct_doc_id and page != "Admin Panel":
             st.markdown("<div class='direct-card'><h1>QR CODE BERJAYA!</h1><h2>Standard Dibuka Secara Langsung</h2></div>", unsafe_allow_html=True)
             c1, c2 = st.columns(2)
             with c1:
-                img = doc['thumbnail_path'] if doc['thumbnail_path'] and os.path.exists(doc['thumbnail_path']) else "https://via.placeholder.com/400x600/4CAF50/white?text=FAMA"
-                st.image(img, use_container_width=True)
+                img_path = doc['thumbnail_path'] if doc['thumbnail_path'] and os.path.exists(doc['thumbnail_path']) else None
+                if img_path:
+                    st.image(img_path, use_container_width=True)
+                else:
+                    st.image("https://via.placeholder.com/400x600/4CAF50/white?text=FAMA", use_container_width=True)
             with c2:
                 st.markdown(f"<h2 style='color:#1B5E20;'>{doc['title']}</h2>", unsafe_allow_html=True)
                 st.write(f"**Kategori:** {doc['category']} • **ID:** {doc['id']}")
                 if os.path.exists(doc['file_path']):
                     with open(doc['file_path'], "rb") as f:
                         st.download_button("MUAT TURUN PDF", f.read(), doc['file_name'], type="primary", use_container_width=True)
+                else:
+                    st.warning("Fail PDF tidak dijumpai.")
             st.stop()
-    except:
-        st.error("Standard tidak dijumpai.")
+        else:
+            st.error("Standard tidak dijumpai.")
+            st.stop()
+    except ValueError:
+        st.error("ID tidak sah.")
+        st.stop()
+    except Exception as e:
+        st.error(f"Error direct access: {e}")
         st.stop()
 
 # =============================================
-# HALAMAN UTAMA — FULL FEATURES
+# HALAMAN UTAMA
 # =============================================
 if page == "Halaman Utama":
     info = get_site_info()
     
-    st.markdown("<div class='header-bg'><h1 style='color:white;'>RUJUKAN STANDARD FAMA</h1><p style='color:white;font-size:2rem;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='header-bg'><h1 style='text-align:center;color:white;'>RUJUKAN FAMA STANDARD</h1><p style='text-align:center;color:white;font-size:2rem;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
     
     st.markdown(f"""
     <div class='info-box'>
@@ -225,42 +266,48 @@ if page == "Halaman Utama":
     </div>
     """, unsafe_allow_html=True)
 
-    # Cari + Filter
     col1, col2 = st.columns([3,1])
     with col1: cari = st.text_input("", placeholder="Cari tajuk standard...", key="cari")
     with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES, key="kat")
 
     filtered = [d for d in docs if (kat == "Semua" or d['category'] == kat) and (not cari or cari.lower() in d['title'].lower())]
 
-    # Pagination
     per_page = 10
     total_page = max(1, (len(filtered) + per_page - 1) // per_page)
-    if "page" not in st.session_state: st.session_state.page = 1
+    if "page" not in st.session_state: 
+        st.session_state.page = 1
 
     c1, c2, c3 = st.columns([1.5,3,1.5])
     with c1:
-        if st.button("Sebelumnya", disabled=st.session_state.page<=1):
-            st.session_state.page -= 1; st.rerun()
+        if st.button("Sebelumnya", disabled=st.session_state.page <= 1):
+            st.session_state.page -= 1
+            st.rerun()
     with c2:
         st.markdown(f"<div style='text-align:center;padding:15px;background:#4CAF50;color:white;border-radius:15px;font-weight:bold;'>Halaman {st.session_state.page} / {total_page} • {len(filtered)} standard</div>", unsafe_allow_html=True)
     with c3:
-        if st.button("Seterusnya", disabled=st.session_state.page>=total_page):
-            st.session_state.page += 1; st.rerun()
+        if st.button("Seterusnya", disabled=st.session_state.page >= total_page):
+            st.session_state.page += 1
+            st.rerun()
 
-    start = (st.session_state.page-1) * per_page
+    start = (st.session_state.page - 1) * per_page
     for d in filtered[start:start+per_page]:
         with st.container():
             st.markdown("<div class='card'>", unsafe_allow_html=True)
             c1, c2 = st.columns([1,2])
             with c1:
-                img = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/400x600/4CAF50/white?text=FAMA"
-                st.image(img, use_container_width=True)
+                img_path = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else None
+                if img_path:
+                    st.image(img_path, use_container_width=True)
+                else:
+                    st.image("https://via.placeholder.com/400x600/4CAF50/white?text=FAMA", use_container_width=True)
             with c2:
                 st.markdown(f"<h3 style='margin-top:0;color:#1B5E20;'>{d['title']}</h3>", unsafe_allow_html=True)
                 st.caption(f"**{d['category']}** • {d['upload_date'][:10]} • {d['uploaded_by']}")
                 if os.path.exists(d['file_path']):
                     with open(d['file_path'], "rb") as f:
                         st.download_button("MUAT TURUN PDF", f.read(), d['file_name'], use_container_width=True)
+                else:
+                    st.warning("Fail PDF tidak dijumpai.")
             st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.get("last_cari") != cari or st.session_state.get("last_kat") != kat:
@@ -272,27 +319,35 @@ if page == "Halaman Utama":
 # PAPAR QR CODE
 # =============================================
 elif page == "Papar QR Code":
-    st.markdown("<h1 style='text-align:center;color:#1B5E20;'>PAPAR QR CODE STANDARD FAMA</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;color:#1B5E20;'>PAPAR QR CODE FAMA STANDARD</h1>", unsafe_allow_html=True)
     search = st.text_input("Cari ID atau Tajuk")
     if search.strip():
         matches = [d for d in get_docs() if str(d['id']) == search.strip() or search.lower() in d['title'].lower()][:15]
-        for d in matches:
-            link = f"https://rujukan-fama-standard.streamlit.app/?doc={d['id']}"
-            qr = qrcode.QRCode(box_size=18, border=6)
-            qr.add_data(link); qr.make(fit=True)
-            img = qr.make_image(fill_color="#1B5E20", back_color="white")
-            buf = BytesIO(); img.save(buf, "PNG")
-            c1, c2 = st.columns([1,2])
-            with c1:
-                st.image(buf.getvalue(), use_container_width=True)
-                st.download_button("Download QR", buf.getvalue(), f"QR_FAMA_{d['id']}.png", "image/png")
-            with c2:
-                st.markdown(f"### {d['title']}")
-                st.code(link)
-            st.markdown("---")
+        if not matches:
+            st.warning("Tiada standard dijumpai.")
+        else:
+            for d in matches:
+                link = f"https://rujukan-fama-standard.streamlit.app/?doc={d['id']}"
+                qr = qrcode.QRCode(box_size=10, border=4)
+                qr.add_data(link)
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="#1B5E20", back_color="white")
+                buf = BytesIO()
+                img.save(buf, "PNG")
+                buf.seek(0)
+                
+                col1, col2 = st.columns([1,2])
+                with col1:
+                    st.image(buf.getvalue(), caption=f"QR untuk {d['title']}", use_container_width=True)
+                    st.download_button("Download QR", buf.getvalue(), f"QR_{d['title'][:20]}.png", "image/png")
+                with col2:
+                    st.markdown(f"### {d['title']}")
+                    st.code(link)
+                    st.caption(f"ID: {d['id']} • Kategori: {d['category']}")
+                st.markdown("---")
 
 # =============================================
-# ADMIN PANEL — FULL POWER
+# ADMIN PANEL
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -304,7 +359,9 @@ else:
             if username in ADMIN_CREDENTIALS and hashlib.sha256(password.encode()).hexdigest() == ADMIN_CREDENTIALS[username]:
                 st.session_state.logged_in = True
                 st.session_state.user = username
-                st.success("Login berjaya!"); st.balloons(); st.rerun()
+                st.success("Login berjaya!")
+                st.balloons()
+                st.rerun()
             else:
                 st.error("Salah bro!")
         st.stop()
@@ -318,15 +375,21 @@ else:
         cat = st.selectbox("Kategori", CATEGORIES)
         thumb = st.file_uploader("Thumbnail", type=["jpg","jpeg","png"])
         if file and title and st.button("SIMPAN", type="primary"):
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            fpath = f"uploads/{ts}_{file.name}"
-            with open(fpath, "wb") as f: f.write(file.getvalue())
-            tpath = save_thumbnail(thumb) if thumb else None
-            conn = sqlite3.connect(DB_NAME)
-            conn.execute("INSERT INTO documents (title,category,file_name,file_path,thumbnail_path,upload_date,uploaded_by) VALUES (?,?,?,?,?,?,?)",
-                         (title, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
-            conn.commit(); conn.close()
-            st.success("Berjaya!"); st.balloons(); st.rerun()
+            try:
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                fpath = f"uploads/{ts}_{file.name}"
+                with open(fpath, "wb") as f: f.write(file.getvalue())
+                tpath = save_thumbnail(thumb) if thumb else None
+                conn = sqlite3.connect(DB_NAME)
+                conn.execute("INSERT INTO documents (title,category,file_name,file_path,thumbnail_path,upload_date,uploaded_by) VALUES (?,?,?,?,?,?,?)",
+                             (title, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
+                conn.commit()
+                conn.close()
+                st.success("Berjaya!")
+                st.balloons()
+                st.rerun()
+            except Exception as e:
+                st.error(f"Gagal simpan: {e}")
 
     with t2:
         search = st.text_input("Cari ID atau tajuk")
@@ -340,16 +403,20 @@ else:
                 if st.button("KEMASKINI", key=f"up{d['id']}"):
                     conn = sqlite3.connect(DB_NAME)
                     conn.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
-                    conn.commit(); conn.close()
-                    st.success("Dikemaskini!"); st.rerun()
+                    conn.commit()
+                    conn.close()
+                    st.success("Dikemaskini!")
+                    st.rerun()
                 if st.button("PADAM", key=f"del{d['id']}", type="secondary"):
                     if st.button("SAH PADAM?", key=f"cf{d['id']}"):
                         if os.path.exists(d['file_path']): os.remove(d['file_path'])
                         if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
                         conn = sqlite3.connect(DB_NAME)
                         conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
-                        conn.commit(); conn.close()
-                        st.success("Dipadam!"); st.rerun()
+                        conn.commit()
+                        conn.close()
+                        st.success("Dipadam!")
+                        st.rerun()
 
     with t3:
         c1, c2 = st.columns(2)
@@ -365,7 +432,6 @@ else:
                 with open(zipname, "rb") as f:
                     st.download_button("Download Backup", f.read(), zipname)
                 os.remove(zipname)
-
             st.markdown("<div class='restore-box'>", unsafe_allow_html=True)
             uploaded = st.file_uploader("Upload backup .zip", type="zip")
             if uploaded and st.checkbox("Saya faham data akan diganti"):
@@ -380,16 +446,16 @@ else:
                         time.sleep(2)
                         st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
-
         with c2:
             if st.button("PADAM SEMUA CHAT", type="secondary"):
                 if st.session_state.get("confirm_clear"):
                     clear_all_chat()
-                    st.success("Chat dipadam!"); del st.session_state.confirm_clear; st.rerun()
+                    st.success("Chat dipadam!")
+                    del st.session_state.confirm_clear
+                    st.rerun()
                 else:
                     st.session_state.confirm_clear = True
                     st.warning("Tekan sekali lagi untuk sah!")
-
             for m in reversed(get_chat_messages()):
                 if m['is_admin']:
                     st.success(f"Admin: {m['message']}")
@@ -397,7 +463,8 @@ else:
                     st.info(f"{m['sender']}: {m['message']}")
                     r = st.text_input("Balas", key=f"r{m['id']}")
                     if st.button("Hantar", key=f"s{m['id']}"):
-                        add_chat_message("Admin FAMA", r, True); st.rerun()
+                        add_chat_message("Admin FAMA", r, True)
+                        st.rerun()
 
     with t4:
         info = get_site_info()
@@ -406,10 +473,11 @@ else:
             u = st.text_area("Maklumat Terkini", info['update'], height=150)
             if st.form_submit_button("SIMPAN"):
                 update_site_info(w, u)
-                st.success("Berjaya!"); st.rerun()
+                st.success("Berjaya!")
+                st.rerun()
 
     if st.button("Log Keluar"):
         st.session_state.clear()
         st.rerun()
 
-st.markdown("<p style='text-align:center;color:gray;font-size:0.9rem;'>© Rujukan Standard FAMA • 2025 • Kau Dah Menang Selamanya Bro!</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center;color:gray;font-size:0.9rem;'>© Rujukan Standard FAMA • 2026 • Powered By Santana Techno!</p>", unsafe_allow_html=True)
