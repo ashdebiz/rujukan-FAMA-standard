@@ -1,6 +1,7 @@
 import streamlit as st
 import sqlite3
 import os
+import os
 import zipfile
 import shutil
 from datetime import datetime
@@ -14,7 +15,7 @@ import time
 # PAGE CONFIG + CSS MANTAP GILA
 # =============================================
 st.set_page_config(
-    page_title="Rujukan FAMA Standard",
+    page_title="Rujukan Standard FAMA",
     page_icon="leaf",
     layout="centered",
     initial_sidebar_state="auto"
@@ -64,7 +65,7 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS site_info (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         welcome_text TEXT, update_info TEXT)""")
-    c.execute("INSERT OR IGNORE INTO site_info (id, welcome_text, update_info) VALUES (1, 'Selamat Datang ke Sistem Rujukan FAMA Standard', 'Semua standard komoditi telah dikemaskini sehingga Disember 2025')")
+    c.execute("INSERT OR IGNORE INTO site_info (id, welcome_text, update_info) VALUES (1, 'Selamat Datang ke Sistem Rujukan Standard FAMA', 'Semua standard komoditi telah dikemaskini sehingga Disember 2025')")
     conn.commit()
     conn.close()
 init_db()
@@ -80,8 +81,7 @@ def save_thumbnail(file):
         path = f"thumbnails/thumb_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.jpg"
         img.save(path, "JPEG", quality=95)
         return path
-    except:
-        return None
+    except: return None
 
 def get_docs():
     conn = sqlite3.connect(DB_NAME)
@@ -169,7 +169,7 @@ with st.sidebar:
             st.rerun()
 
 # =============================================
-# DIRECT QR ACCESS
+# DIRECT QR ACCESS (JALAN KALAU LINK ?doc=123)
 # =============================================
 if direct_doc_id and page != "Admin Panel":
     try:
@@ -192,12 +192,12 @@ if direct_doc_id and page != "Admin Panel":
         st.stop()
 
 # =============================================
-# HALAMAN UTAMA
+# HALAMAN UTAMA — FULL FEATURES
 # =============================================
 if page == "Halaman Utama":
     info = get_site_info()
     
-    st.markdown("<div class='header-bg'><h1 style='text-align:center;color:white;'>RUJUKAN FAMA STANDARD</h1><p style='text-align:center;color:white;font-size:2rem;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='header-bg'><h1 style='color:white;'>RUJUKAN STANDARD FAMA</h1><p style='color:white;font-size:2rem;'>Keluaran Hasil Pertanian Malaysia</p></div>", unsafe_allow_html=True)
     
     st.markdown(f"""
     <div class='info-box'>
@@ -225,30 +225,29 @@ if page == "Halaman Utama":
     </div>
     """, unsafe_allow_html=True)
 
+    # Cari + Filter
     col1, col2 = st.columns([3,1])
     with col1: cari = st.text_input("", placeholder="Cari tajuk standard...", key="cari")
     with col2: kat = st.selectbox("", ["Semua"] + CATEGORIES, key="kat")
 
     filtered = [d for d in docs if (kat == "Semua" or d['category'] == kat) and (not cari or cari.lower() in d['title'].lower())]
 
+    # Pagination
     per_page = 10
     total_page = max(1, (len(filtered) + per_page - 1) // per_page)
-    if "page" not in st.session_state: 
-        st.session_state.page = 1
+    if "page" not in st.session_state: st.session_state.page = 1
 
     c1, c2, c3 = st.columns([1.5,3,1.5])
     with c1:
-        if st.button("Sebelumnya", disabled=st.session_state.page <= 1):
-            st.session_state.page -= 1
-            st.rerun()
+        if st.button("Sebelumnya", disabled=st.session_state.page<=1):
+            st.session_state.page -= 1; st.rerun()
     with c2:
         st.markdown(f"<div style='text-align:center;padding:15px;background:#4CAF50;color:white;border-radius:15px;font-weight:bold;'>Halaman {st.session_state.page} / {total_page} • {len(filtered)} standard</div>", unsafe_allow_html=True)
     with c3:
-        if st.button("Seterusnya", disabled=st.session_state.page >= total_page):
-            st.session_state.page += 1
-            st.rerun()
+        if st.button("Seterusnya", disabled=st.session_state.page>=total_page):
+            st.session_state.page += 1; st.rerun()
 
-    start = (st.session_state.page - 1) * per_page
+    start = (st.session_state.page-1) * per_page
     for d in filtered[start:start+per_page]:
         with st.container():
             st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -273,7 +272,7 @@ if page == "Halaman Utama":
 # PAPAR QR CODE
 # =============================================
 elif page == "Papar QR Code":
-    st.markdown("<h1 style='text-align:center;color:#1B5E20;'>PAPAR QR CODE FAMA STANDARD</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;color:#1B5E20;'>PAPAR QR CODE STANDARD FAMA</h1>", unsafe_allow_html=True)
     search = st.text_input("Cari ID atau Tajuk")
     if search.strip():
         matches = [d for d in get_docs() if str(d['id']) == search.strip() or search.lower() in d['title'].lower()][:15]
@@ -293,7 +292,7 @@ elif page == "Papar QR Code":
             st.markdown("---")
 
 # =============================================
-# ADMIN PANEL — DENGAN EDIT THUMBNAIL + PDF SEKALIGUS!
+# ADMIN PANEL — FULL POWER
 # =============================================
 else:
     if not st.session_state.get("logged_in"):
@@ -305,9 +304,7 @@ else:
             if username in ADMIN_CREDENTIALS and hashlib.sha256(password.encode()).hexdigest() == ADMIN_CREDENTIALS[username]:
                 st.session_state.logged_in = True
                 st.session_state.user = username
-                st.success("Login berjaya!")
-                st.balloons()
-                st.rerun()
+                st.success("Login berjaya!"); st.balloons(); st.rerun()
             else:
                 st.error("Salah bro!")
         st.stop()
@@ -329,93 +326,30 @@ else:
             conn.execute("INSERT INTO documents (title,category,file_name,file_path,thumbnail_path,upload_date,uploaded_by) VALUES (?,?,?,?,?,?,?)",
                          (title, cat, file.name, fpath, tpath, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user))
             conn.commit(); conn.close()
-            st.success("Berjaya!")
-            st.balloons()
-            st.rerun()
+            st.success("Berjaya!"); st.balloons(); st.rerun()
 
-    with t2:  # EDIT & PADAM — BOLEH GANTI PDF + THUMBNAIL SEKALIGUS!
-        search = st.text_input("Cari ID atau tajuk untuk edit/padam")
+    with t2:
+        search = st.text_input("Cari ID atau tajuk")
         docs = get_docs()
-        if search.strip():
-            docs = [d for d in docs if search.lower() in str(d['id']).lower() or search.lower() in d['title'].lower()]
-
+        if search:
+            docs = [d for d in docs if search in str(d['id']) or search.lower() in d['title'].lower()]
         for d in docs:
-            with st.expander(f"ID {d['id']} • {d['title']} • {d['category']}"):
-                col_img, col_form = st.columns([1, 2])
-                with col_img:
-                    current_thumb = d['thumbnail_path'] if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']) else "https://via.placeholder.com/300x400/4CAF50/white?text=THUMBNAIL"
-                    st.image(current_thumb, use_container_width=True)
-                    st.caption("Thumbnail Semasa")
-
-                with col_form:
-                    new_title = st.text_input("Tajuk Baru", value=d['title'], key=f"title_{d['id']}")
-                    new_cat = st.selectbox("Kategori Baru", CATEGORIES, index=CATEGORIES.index(d['category']), key=f"cat_{d['id']}")
-
-                    new_pdf = st.file_uploader("Ganti PDF (pilihan)", type="pdf", key=f"pdf_{d['id']}")
-                    new_thumb = st.file_uploader("Ganti Thumbnail (pilihan)", type=["jpg", "jpeg", "png"], key=f"thumb_{d['id']}")
-
-                    if st.button("💾 KEMASKINI STANDARD", key=f"update_{d['id']}", type="primary"):
-                        try:
-                            updates_made = False
-                            conn = sqlite3.connect(DB_NAME)
-                            c = conn.cursor()
-
-                            # Update tajuk & kategori
-                            if new_title != d['title'] or new_cat != d['category']:
-                                c.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
-                                updates_made = True
-
-                            # Ganti PDF kalau ada upload baru
-                            if new_pdf:
-                                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                new_fpath = f"uploads/{ts}_{new_pdf.name}"
-                                with open(new_fpath, "wb") as f:
-                                    f.write(new_pdf.getvalue())
-                                # Padam PDF lama
-                                if os.path.exists(d['file_path']):
-                                    os.remove(d['file_path'])
-                                c.execute("UPDATE documents SET file_name=?, file_path=? WHERE id=?", (new_pdf.name, new_fpath, d['id']))
-                                updates_made = True
-
-                            # Ganti thumbnail kalau ada upload baru
-                            if new_thumb:
-                                new_tpath = save_thumbnail(new_thumb)
-                                if new_tpath:
-                                    # Padam thumbnail lama
-                                    if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']):
-                                        os.remove(d['thumbnail_path'])
-                                    c.execute("UPDATE documents SET thumbnail_path=? WHERE id=?", (new_tpath, d['id']))
-                                    updates_made = True
-
-                            if updates_made:
-                                conn.commit()
-                                st.success(f"Standard ID {d['id']} berjaya dikemaskini!")
-                                st.balloons()
-                                conn.close()
-                                st.rerun()
-                            else:
-                                st.info("Tiada perubahan dibuat.")
-                                conn.close()
-                        except Exception as e:
-                            st.error(f"Gagal kemaskini: {str(e)}")
-
-                    if st.button("🗑️ PADAM STANDARD", key=f"delete_{d['id']}", type="secondary"):
-                        if st.button("⚠️ SAH PADAM STANDARD INI?", key=f"confirm_delete_{d['id']}", type="secondary"):
-                            try:
-                                # Padam file fizikal
-                                if os.path.exists(d['file_path']):
-                                    os.remove(d['file_path'])
-                                if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']):
-                                    os.remove(d['thumbnail_path'])
-                                # Padam dari database
-                                conn = sqlite3.connect(DB_NAME)
-                                conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
-                                conn.commit()
-                                conn.close()
-                                st.success(f"Standard ID {d['id']} telah dipadam!")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Gagal padam: {str(e)}")
+            with st.expander(f"ID {d['id']} • {d['title']}"):
+                new_title = st.text_input("Tajuk", d['title'], key=f"title{d['id']}")
+                new_cat = st.selectbox("Kategori", CATEGORIES, CATEGORIES.index(d['category']), key=f"cat{d['id']}")
+                if st.button("KEMASKINI", key=f"up{d['id']}"):
+                    conn = sqlite3.connect(DB_NAME)
+                    conn.execute("UPDATE documents SET title=?, category=? WHERE id=?", (new_title, new_cat, d['id']))
+                    conn.commit(); conn.close()
+                    st.success("Dikemaskini!"); st.rerun()
+                if st.button("PADAM", key=f"del{d['id']}", type="secondary"):
+                    if st.button("SAH PADAM?", key=f"cf{d['id']}"):
+                        if os.path.exists(d['file_path']): os.remove(d['file_path'])
+                        if d['thumbnail_path'] and os.path.exists(d['thumbnail_path']): os.remove(d['thumbnail_path'])
+                        conn = sqlite3.connect(DB_NAME)
+                        conn.execute("DELETE FROM documents WHERE id=?", (d['id'],))
+                        conn.commit(); conn.close()
+                        st.success("Dipadam!"); st.rerun()
 
     with t3:
         c1, c2 = st.columns(2)
@@ -478,4 +412,4 @@ else:
         st.session_state.clear()
         st.rerun()
 
-st.markdown("<p style='text-align:center;color:gray;font-size:0.9rem;'>© Rujukan Standard FAMA • 2025 • Powered By Santana Techno!</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center;color:gray;font-size:0.9rem;'>© Rujukan Standard FAMA • 2025 • Kau Dah Menang Selamanya Bro!</p>", unsafe_allow_html=True)
